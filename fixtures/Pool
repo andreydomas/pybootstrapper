@@ -1,0 +1,9 @@
+created: 2012-01-02 03:20:11
+subnet: '192.168.0.0/24'
+domain: 'test.org'
+router: '192.168.0.1'
+---
+created: 2013-02-01 05:23:06
+subnet: '192.168.1.0/25'
+domain: 'test2.org'
+router: '192.168.1.1'
