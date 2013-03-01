@@ -7,6 +7,7 @@ from twisted.internet.task import LoopingCall
 
 from app import app, db
 
+
 import logging
 if not app.debug:
     log_level = logging.WARN
@@ -16,6 +17,21 @@ logging.basicConfig(level=log_level, format=app.config.get('LOG_FORMAT', '%(leve
 
 manager = Manager(app)
 
+
+# for create & drop tables
+for module in app.config.get('MODULES', []):
+    module_m = __import__(module, globals(), locals(), ['models'], 0)
+
+@manager.command
+def shell():
+    import os
+    import readline
+    from pprint import pprint
+    import flask
+    import app
+    from IPython import embed
+    embed()
+    os.environ['PYTHONINSPECT'] = 'True'
 
 @manager.command
 def sync_db():

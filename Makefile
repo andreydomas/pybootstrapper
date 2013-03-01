@@ -7,12 +7,16 @@ NOSETESTS := ${ENV}/bin/nosetests
 run:
 	${PYTHON} manager.py runserver
 
+shell:
+	${PYTHON} manager.py shell
+
 env:
 	virtualenv --system-site-packages ${ENV}
 	${PIP} install twisted
 	${PIP} install Flask
 	${PIP} install Flask-SQLAlchemy
 	${PIP} install Flask-Script
+	${PIP} install netaddr
 	${PIP} install nose
 
 db: drop_db
