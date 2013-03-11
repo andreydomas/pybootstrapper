@@ -13,22 +13,25 @@ class Pool(Fixtured, db.Model):
     subnet = db.Column(Subnet(18), primary_key=True)
     router = db.Column(Ip, nullable=True)
     domain = db.Column(db.String(255), nullable=False)
-    lease_time = db.Column(db.Integer, nullable=True)
-
+    lease_time = db.Column(db.Integer, nullable=False, default=86400)
 
     def make_offer(self, node, xid, siaddr):
 
         existen_leasing = self.leases.filter(Lease.node == node) \
-                                     .filter(db.or_(Lease.leasing_due == None, Lease.xid == xid)).first()
+                                     .filter(Lease.xid == xid) \
+                                     .filter(Lease.leasing_due == None) \
+                                     .first()
         if existen_leasing:
             return existen_leasing.yiaddr
 
-        ip = self.subnet.ip + 1
-        leasing_ip_list = [ leased.yiaddr for leased in self.leases.all() ]
-        while ip <= self.subnet.ip + self.subnet.size:
-            if not ip in leasing_ip_list:
-                break
-            ip += 1
+        ip = node.static_ip
+        if not ip:
+            ip = self.subnet.ip + 1
+            leasing_ip_list = [ leased.yiaddr for leased in self.leases.all() ]
+            while ip <= self.subnet.ip + self.subnet.size:
+                if not ip in leasing_ip_list:
+                    break
+                ip += 1
 
         lease = Lease()
         lease.node = node
