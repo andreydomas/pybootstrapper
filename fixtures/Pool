@@ -4,6 +4,6 @@ domain: 'test.org'
 router: '192.168.0.1'
 ---
 created: 2013-02-01 05:23:06
-subnet: '192.168.1.0/25'
+subnet: '172.16.247.0/24'
 domain: 'test2.org'
-router: '192.168.1.1'
+router: '172.16.247.1'

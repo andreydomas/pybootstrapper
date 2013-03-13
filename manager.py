@@ -79,9 +79,8 @@ def runserver():
     reactor.listenTCP(5000, site, interface="0.0.0.0")
 
     for module in app.config.get('MODULES', []):
-        module_m = __import__(module, globals(), locals(), ['module'], 0)
-        module_f = module_m.module.init(app.config)
-        LoopingCall(module_f).start(0)
+        module_init = __import__(module, globals(), locals(), ['module'], 0)
+        module_init.module.init(reactor, app.config)
 
     reactor.run()
 

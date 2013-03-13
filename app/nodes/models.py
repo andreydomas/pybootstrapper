@@ -15,34 +15,6 @@ class Pool(Fixtured, db.Model):
     domain = db.Column(db.String(255), nullable=False)
     lease_time = db.Column(db.Integer, nullable=False, default=86400)
 
-    def make_offer(self, node, xid, siaddr):
-
-        existen_leasing = self.leases.filter(Lease.node == node) \
-                                     .filter(Lease.xid == xid) \
-                                     .filter(Lease.leasing_due == None) \
-                                     .first()
-        if existen_leasing:
-            return existen_leasing.yiaddr
-
-        ip = node.static_ip
-        if not ip:
-            ip = self.subnet.ip + 1
-            leasing_ip_list = [ leased.yiaddr for leased in self.leases.all() ]
-            while ip <= self.subnet.ip + self.subnet.size:
-                if not ip in leasing_ip_list:
-                    break
-                ip += 1
-
-        lease = Lease()
-        lease.node = node
-        lease.xid = xid
-        lease.pool = self
-        lease.yiaddr = ip
-        lease.siaddr = siaddr
-        db.session.add(lease)
-        db.session.commit()
-        return ip
-
 
 class Node(Fixtured, db.Model):
     __tablename__ = 'nodes'
@@ -62,6 +34,38 @@ class Node(Fixtured, db.Model):
     def by_mac(cls, mac):
         return cls.query.filter(cls.mac == mac).first()
 
+    def make_offer(self, xid):
+        existen_leasing = Lease.query.with_parent(self).filter(Lease.xid == xid) \
+                                     .filter(Lease.leasing_due == None) \
+                                     .first()
+
+        if existen_leasing:
+            return existen_leasing.yiaddr
+
+        ip = self.static_ip
+        if not ip:
+            ip = self.pool.subnet.ip + 1
+            leasing_ip_list = [ leased.yiaddr for leased in self.pool.leases.all() ]
+            while ip <= self.pool.subnet.ip + self.pool.subnet.size:
+                if not ip in leasing_ip_list:
+                    break
+                ip += 1
+
+        lease = Lease()
+        lease.xid = xid
+        lease.pool = self.pool
+        lease.yiaddr = ip
+        self.leases.append(lease)
+        db.object_session(self).commit()
+        return ip
+
+    def check_offer(self, xid, request_ip_address):
+        return Lease.query.with_parent(self).filter(Lease.xid == xid) \
+                                            .filter(Lease.leasing_due == None) \
+                                            .filter(Lease.yiaddr == request_ip_address) \
+                                            .first()
+
+
 
 class Lease(db.Model):
     __tablename__ = 'leasing'
@@ -70,7 +74,6 @@ class Lease(db.Model):
     pool_subnet = db.Column(Subnet(18), db.ForeignKey(Pool.subnet), nullable=False)
     node_mac = db.Column(Mac, db.ForeignKey(Node.mac), primary_key=True)
     yiaddr = db.Column(Ip, nullable=True)
-    siaddr = db.Column(Ip, nullable=False)
     leasing_due = db.Column(db.DateTime, nullable=True)
 
     @declared_attr
@@ -83,3 +86,12 @@ class Lease(db.Model):
         return db.relationship(Pool, lazy='select',
                      backref=db.backref('leases', lazy='dynamic', order_by=cls.created.desc()),
                 )
+
+    @classmethod
+    def check_offer(cls, mac, xid, request_ip_address):
+        return cls.query.filter(cls.xid == xid) \
+                        .filter(cls.node_mac == mac) \
+                        .filter(cls.leasing_due == None) \
+                        .filter(cls.yiaddr == request_ip_address) \
+                        .first()
+

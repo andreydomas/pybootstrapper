@@ -1,28 +1,41 @@
 import logging
+import struct
+import fcntl
+import socket
+import IN
 
-from twisted.internet import reactor
+from twisted.internet.task import LoopingCall, deferLater
 
-from pydhcplib.dhcp_packet import *
-from pydhcplib.dhcp_network import *
+from pydhcplib.dhcp_packet import DhcpPacket
+from pydhcplib.dhcp_network import DhcpServer
 from pydhcplib.type_strlist import strlist
 from pydhcplib.type_ipv4 import ipv4
 
-from ..nodes.models import Node
+from ..nodes.models import Node, Pool, Lease
 
-logger = logging.getLogger('dhcp')
 
-class Server(DhcpServer):
-    def __init__(self, config, listen_on):
+class PyBootstapperDhcpWorker(DhcpServer):
+    def __init__(self, config, listen_on_iface):
 
-        self.client_port = config.get('DHCP_CLIENT_LISTEN_PORT', 68)
-        self.server_port = config.get('DHCP_SERVER_LISTEN_PORT', 67)
-        self.listen_on = ipv4(listen_on)
+        self.listen_on_iface = listen_on_iface
+        self.logger = logging.getLogger('dhcp')
+        self.term_received = False
 
-        DhcpServer.__init__(self,
-                            '0.0.0.0',
-                            self.client_port,
-                            self.server_port
-                            )
+        DhcpServer.__init__(self)
+
+        listen_on = socket.inet_ntoa(fcntl.ioctl(
+                            self.dhcp_socket.fileno(),
+                            0x8915,  # SIOCGIFADDR
+                            struct.pack('256s', self.listen_on_iface[:15])
+                        )[20:24])
+
+        self.listen_on_ip = ipv4(listen_on)
+
+        self.logger.info('DHCP listen on %s(%s)', self.listen_on_ip, self.listen_on_iface)
+
+    def CreateSocket(self):
+        DhcpServer.CreateSocket(self)
+        self.dhcp_socket.setsockopt(socket.SOL_SOCKET, IN.SO_BINDTODEVICE, self.listen_on_iface)
 
 
     def _hw_addr2str(self, hw):
@@ -50,13 +63,13 @@ class Server(DhcpServer):
 
 
     def HandleDhcpDiscover(self, packet):
-        logger.info('DISCOVER from %s', self._hw_addr2str(packet.GetHardwareAddress()))
-        logger.debug(packet.str())
+        self.logger.info('DISCOVER from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.debug(packet.str())
 
         node = Node.by_mac(self._hw_addr2str(packet.GetHardwareAddress()))
 
         if node is None:
-            logger.info('Node %s has not listen in database', self._hw_addr2str(packet.GetHardwareAddress()))
+            self.logger.info('Node %s has not listen in database', self._hw_addr2str(packet.GetHardwareAddress()))
             return
 
         offer = DhcpPacket()
@@ -64,60 +77,62 @@ class Server(DhcpServer):
 
         offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time))
 
-        offer.SetOption("yiaddr",
-                node.pool.make_offer(node,
-                    self._list2long(offer.GetOption('xid')),
-                    self.listen_on.int()
-                ).words
-            )
+        offer.SetOption("yiaddr", node.make_offer(self._list2long(offer.GetOption('xid'))).words)
 
-        offer.SetOption("siaddr", self.listen_on.list())
+        offer.SetOption("siaddr", self.listen_on_ip.list())
 
         offer.SetOption("domain_name", strlist(str(node.pool.domain)).list())
 
         offer.SetOption("router", list(node.pool.router.words))
 
-        logger.debug(offer.str())
+        self.logger.debug(offer.str())
 
-        if self.SendDhcpPacketTo(offer, str(ipv4(offer.GetGiaddr())), self.client_port) <= 0:
-            logger.error('Could not send DHCP offer to %s', self._hw_addr2str(offer.GetHardwareAddress()))
+        if self.SendDhcpPacketTo(offer, str(ipv4(offer.GetGiaddr())), self.emit_port) <= 0:
+            self.logger.error('Could not send DHCP offer to %s', self._hw_addr2str(offer.GetHardwareAddress()))
 
 
     def HandleDhcpRequest(self, packet):
-        logger.info('REQUEST from %s', self._hw_addr2str(packet.GetHardwareAddress()))
-        logger.debug(packet.str())
+        self.logger.info('REQUEST from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.debug(packet.str())
+
+        xid = self._list2long(packet.GetOption('xid'))
+        request_ip_address = self._list2long(packet.GetOption('request_ip_address'))
+        mac = self._list2long(packet.GetOption('chaddr'))
+
+        offer = Lease.check_offer(mac, xid, request_ip_address)
+        if not offer:
+            self.logger.info('Node %s has accepted offer from another server', self._hw_addr2str(packet.GetHardwareAddress()))
+            return
 
         ack = DhcpPacket()
         ack.CreateDhcpAckPacketFrom(packet)
 
-        if self.SendDhcpPacketTo(ack, '.'.join(map(str,ack.GetGiaddr())), self.client_port) <= 0:
-            logger.error('Could not send DHCP ACK to %s', self._hw_addr2str(offer.GetHardwareAddress()))
+        if self.SendDhcpPacketTo(ack, '.'.join(map(str,ack.GetGiaddr())), self.emit_port) <= 0:
+            self.logger.error('Could not send DHCP ACK to %s', self._hw_addr2str(offer.GetHardwareAddress()))
 
 
     def HandleDhcpDecline(self, packet):
-        logger.warning('DECLINE from %s for ip %s', self._hw_addr2str(packet.GetHardwareAddress()), packet.getOption('ciaddr'))
-        logger.debug(packet.str())
+        self.logger.warning('DECLINE from %s for ip %s', self._hw_addr2str(packet.GetHardwareAddress()), packet.getOption('ciaddr'))
+        self.logger.debug(packet.str())
 
 
     def HandleDhcpRelease(self, packet):
-        logger.info('RELEASE from %s', self._hw_addr2str(packet.GetHardwareAddress()))
-        logger.debug(packet.str())
+        self.logger.info('RELEASE from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.debug(packet.str())
 
 
     def HandleDhcpInform(self, packet):
-        logger.info('INFORM from %s', self._hw_addr2str(packet.GetHardwareAddress()))
-        logger.debug(packet.str())
+        self.logger.info('INFORM from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.debug(packet.str())
 
-def init(config):
-    dhcp_listen_on = config.get('DHCP_LISTEN', ['0.0.0.0'])
 
-    servers = []
+def init(reactor, config):
+    dhcp_listen_on = config.get('DHCP_LISTEN', [])
 
-    for addr in dhcp_listen_on:
-        servers.append(Server(config, addr))
+    def worker_wrapper(w):
+        while True:
+            w()
 
-    def get_next_packet():
-        for server in servers:
-            server.GetNextDhcpPacket()
-
-    return get_next_packet
+    for iface in dhcp_listen_on:
+        worker = PyBootstapperDhcpWorker(config, iface + '\0').GetNextDhcpPacket
+        reactor.callFromThread(worker_wrapper, worker)
