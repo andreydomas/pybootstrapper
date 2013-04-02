@@ -11,7 +11,7 @@ from pydhcplib.dhcp_network import DhcpServer
 from pydhcplib.type_strlist import strlist
 from pydhcplib.type_ipv4 import ipv4
 
-from ..nodes.models import Node, Pool, Lease
+from ..nodes.models import Node
 
 
 class PyBootstapperDhcpWorker(DhcpServer):
@@ -30,6 +30,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
                         )[20:24])
 
         self.listen_on_ip = ipv4(listen_on)
+        self.broadcast = str(ipv4([255,255,255,255]))
 
         self.logger.info('DHCP listen on %s(%s)', self.listen_on_ip, self.listen_on_iface)
 
@@ -72,43 +73,70 @@ class PyBootstapperDhcpWorker(DhcpServer):
             self.logger.info('Node %s has not listen in database', self._hw_addr2str(packet.GetHardwareAddress()))
             return
 
+
         offer = DhcpPacket()
         offer.CreateDhcpOfferPacketFrom(packet)
+        yiaddr = node.make_offer()
 
         offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time))
-
-        offer.SetOption("yiaddr", node.make_offer(self._list2long(offer.GetOption('xid'))).words)
-
+        offer.SetOption("yiaddr", yiaddr.words)
         offer.SetOption("siaddr", self.listen_on_ip.list())
-
-        offer.SetOption("domain_name", strlist(str(node.pool.domain)).list())
-
-        offer.SetOption("router", list(node.pool.router.words))
 
         self.logger.debug(offer.str())
 
-        if self.SendDhcpPacketTo(offer, str(ipv4(offer.GetGiaddr())), self.emit_port) <= 0:
+        if self.SendDhcpPacketTo(offer, self.broadcast, self.emit_port) <= 0:
             self.logger.error('Could not send DHCP offer to %s', self._hw_addr2str(offer.GetHardwareAddress()))
 
 
     def HandleDhcpRequest(self, packet):
-        self.logger.info('REQUEST from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        request_ip_address = self._list2long(packet.GetOption('request_ip_address'))
+        mac = self._hw_addr2str(packet.GetHardwareAddress())
+
+        # rfc5107
+        if packet.GetOption('server_identifier'):
+            server_ip = ipv4(self._list2long(packet.GetOption('server_identifier')))
+            if server_ip != self.listen_on_ip:
+                self.logger.info('Node %s has accept offer from another server', mac)
+                Node.cleanup_offers_for_mac(mac)
+                return
+
+        self.logger.info('REQUEST from %s', mac)
         self.logger.debug(packet.str())
 
-        xid = self._list2long(packet.GetOption('xid'))
-        request_ip_address = self._list2long(packet.GetOption('request_ip_address'))
-        mac = self._list2long(packet.GetOption('chaddr'))
-
-        offer = Lease.check_offer(mac, xid, request_ip_address)
-        if not offer:
-            self.logger.info('Node %s has accepted offer from another server', self._hw_addr2str(packet.GetHardwareAddress()))
-            return
+        node = Node.by_mac(mac)
+        lease = node.make_lease(request_ip_address)
 
         ack = DhcpPacket()
-        ack.CreateDhcpAckPacketFrom(packet)
 
-        if self.SendDhcpPacketTo(ack, '.'.join(map(str,ack.GetGiaddr())), self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP ACK to %s', self._hw_addr2str(offer.GetHardwareAddress()))
+        if not lease:
+            self.logger.info('Address %s requested by %s is not found in offers store, I\'ll send DHCP NACK', str(ipv4(request_ip_address)), mac)
+            ack.CreateDhcpNackPacketFrom(packet)
+        else:
+            ack.CreateDhcpAckPacketFrom(packet)
+            ack.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time))
+            ack.SetOption("yiaddr", lease.yiaddr.words)
+            ack.SetOption("broadcast_address", list(node.pool.subnet.broadcast.words))
+            ack.SetOption("time_offset", self._long2list(node.pool.time_offset))
+            ack.SetOption("siaddr", self.listen_on_ip.list())
+            ack.SetOption("domain_name", strlist(str(node.pool.domain)).list())
+            ack.SetOption("router", list(node.pool.router.words))
+            ack.SetOption("host_name", strlist(str(node.hostname)).list())
+
+            if node.pool.domain_name_servers:
+                name_servers = [ip.words for ip in node.pool.domain_name_servers]
+                ack.SetOption("domain_name_server", list(reduce(lambda x,y: x+y,name_servers)))
+
+            if node.pool.ntp_servers:
+                ntp_servers = [ip.words for ip in node.pool.ntp_servers]
+                ack.SetOption("ntp_servers", list(reduce(lambda x,y: x+y,ntp_servers)))
+
+
+            lease.commit_leasing()
+
+        self.logger.debug(ack.str())
+        if self.SendDhcpPacketTo(ack, self.broadcast, self.emit_port) <= 0:
+            self.logger.error('Could not send DHCP ACK to %s', mac)
+
 
 
     def HandleDhcpDecline(self, packet):
