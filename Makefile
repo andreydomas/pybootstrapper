@@ -17,7 +17,7 @@ env:
 	${PIP} install Flask-SQLAlchemy
 	${PIP} install Flask-Script
 	${PIP} install netaddr
-	${PIP} install nose
+	${PIP} install pyping
 
 db: drop_db
 	${PYTHON} manager.py sync_db
