@@ -75,18 +75,21 @@ class PyBootstapperDhcpWorker(DhcpServer):
         self.logger.info('DISCOVER from %s', mac)
         self.logger.debug(packet.str())
 
+        client_identifier = self._list2long(packet.GetClientIdentifier())
+
         node = Node.by_mac(mac)
 
         if node is None:
             self.logger.info('Node %s has not listen in database', mac)
             return
 
+        client_identifier = self._list2long(packet.GetClientIdentifier())
 
         offer = DhcpPacket()
         offer.CreateDhcpOfferPacketFrom(packet)
-        yiaddr = node.make_offer(self.icmp_test_alive)
+        yiaddr = node.offer(client_identifier, self.icmp_test_alive)
 
-        offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time))
+        offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time)) # wrong!
         offer.SetOption("yiaddr", yiaddr.words)
         offer.SetOption("siaddr", self.listen_on_ip.list())
 
@@ -101,6 +104,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
         packet.TransformToDhcpNackPacket()
         if self.SendDhcpPacketTo(packet, self.broadcast, self.emit_port) <= 0:
             self.logger.error('Could not send DHCP NACK to %s', mac)
+
 
     def HandleDhcpRequest(self, packet):
         mac = self._hw_addr2str(packet.GetHardwareAddress())
@@ -127,7 +131,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
             return
 
         node = Node.by_mac(mac)
-        lease = node.make_lease(request_ip_address, existen=renew_ip)
+        lease = node.lease(request_ip_address, existen=renew_ip)
 
         if not lease:
             self.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), mac)
@@ -153,7 +157,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
             ntp_servers = [ip.words for ip in node.pool.ntp_servers]
             ack.SetOption("ntp_servers", list(reduce(lambda x,y: x+y,ntp_servers)))
 
-        node.commit_leasing(lease)
+        node.commit_lease(lease)
 
         self.logger.debug(ack.str())
         if self.SendDhcpPacketTo(ack, self.broadcast, self.emit_port) <= 0:
@@ -170,12 +174,16 @@ class PyBootstapperDhcpWorker(DhcpServer):
 
         node = Node.by_mac(mac)
         if node:
-            node.report_decline(decline_ip)
+            node.decline(decline_ip)
 
 
     def HandleDhcpRelease(self, packet):
+        mac = self._hw_addr2str(packet.GetHardwareAddress())
         self.logger.info('RELEASE from %s', self._hw_addr2str(packet.GetHardwareAddress()))
         self.logger.debug(packet.str())
+
+        node = Node.by_mac(mac)
+        node.release()
 
 
     def HandleDhcpInform(self, packet):

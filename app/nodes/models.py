@@ -33,7 +33,7 @@ class Pool(Fixtured, db.Model):
     @property
     def leases(self):
         return db.object_session(self).query(Lease).join(Node, Node.pool_subnet==self.subnet) \
-                                      .filter(Lease.node_mac==Node.mac).all()
+                                      .filter(Lease.chaddr==Node.mac).all()
 
 
 class Node(Fixtured, db.Model):
@@ -56,10 +56,10 @@ class Node(Fixtured, db.Model):
 
     @classmethod
     def cleanup_offers_for_mac(cls, mac):
-        Lease.query.filter(Lease.node_mac==mac, Lease.leasing_until==None).delete()
+        Lease.query.filter(Lease.chaddr==mac, Lease.leasing_until==None).delete()
         db.session.commit()
 
-    def make_offer(self, test_func):
+    def offer(self, client_identifier, test_func):
         offer_timeout = datetime.now() - timedelta(seconds=app.config.get('DHCP_OFFER_TIMEOUT', 15))
 
         # cleanup expired leasing
@@ -67,6 +67,7 @@ class Node(Fixtured, db.Model):
              .filter(Lease.leasing_until==None) \
              .filter(Lease.created < offer_timeout ) \
              .delete()
+
 
         existen_leasing = Lease.query.with_parent(self) \
                                      .filter(Lease.leasing_until!=None) \
@@ -92,32 +93,36 @@ class Node(Fixtured, db.Model):
 
         return ip
 
-    def make_lease(self, ip, existen=None):
-        query = Lease.query.filter(Lease.node_mac==self.mac, Lease.yiaddr==ip)
+    def lease(self, ip, existen=None):
+        query = Lease.query.filter(Lease.chaddr==self.mac, Lease.yiaddr==ip)
         query = query.filter(Lease.leasing_until!=None) if existen else query
         return query.first()
 
 
-    def report_decline(self, ip):
+    def decline(self, ip):
         decline = Decline(ip, self.mac)
         db.session.add(decline)
         db.session.commit()
 
-    def commit_leasing(self, lease):
+    def commit_lease(self, lease):
         Lease.query.with_parent(self).filter(Lease.yiaddr!=lease.yiaddr).delete()  # remove all other offers
         lease.leasing_until = datetime.now() + timedelta(seconds=self.pool.lease_time)
         db.session.commit()
 
+    def release(self):
+        Lease.query.with_parent(self).delete()
+
 
 class Lease(db.Model):
     __tablename__ = 'leasing'
+    client_identifier = db.Column(db.String(255), nullable=True)
     created = created = db.Column(db.DateTime, default=lambda: datetime.now())
-    node_mac = db.Column(Mac, db.ForeignKey(Node.mac), primary_key=True)
+    chaddr = db.Column(Mac, db.ForeignKey(Node.mac), primary_key=True)
     yiaddr = db.Column(Ip, primary_key=True)
     leasing_until = db.Column(db.DateTime, nullable=True) # null mean offered
 
     def __init__(self, mac, yiaddr):
-        self.node_mac = mac
+        self.chaddr = mac
         self.yiaddr = yiaddr
 
     @declared_attr
@@ -127,7 +132,7 @@ class Lease(db.Model):
 
     @property
     def pool(self):
-        return db.object_session(self).query(Pool).filter(Pool.subnet==Node.pool_subnet, Node.mac==self.node_mac).first()
+        return db.object_session(self).query(Pool).filter(Pool.subnet==Node.pool_subnet, Node.mac==self.chaddr).first()
 
 
 class Decline(db.Model):
