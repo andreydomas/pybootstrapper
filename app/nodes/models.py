@@ -33,12 +33,12 @@ class Pool(Fixtured, db.Model):
     @property
     def leases(self):
         return db.object_session(self).query(Lease).join(Node, Node.pool_subnet==self.subnet) \
-                                      .filter(Lease.chaddr==Node.mac).all()
+                                      .filter(Lease.id==Node.id).all()
 
 
 class Node(Fixtured, db.Model):
     __tablename__ = 'nodes'
-    mac = db.Column(Mac, primary_key=True)
+    id = db.Column(db.String, primary_key=True)
     created = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now())
     hostname = db.Column(db.String(255), nullable=False)
     static_ip = db.Column(Ip, nullable=True)
@@ -50,16 +50,11 @@ class Node(Fixtured, db.Model):
                   primaryjoin=db.and_(cls.pool_subnet==Pool.subnet),
                   backref=db.backref('nodes', lazy='select', order_by=cls.created.desc()))
 
-    @classmethod
-    def by_mac(cls, mac):
-        return cls.query.filter(cls.mac == mac).first()
-
-    @classmethod
-    def cleanup_offers_for_mac(cls, mac):
-        Lease.query.filter(Lease.chaddr==mac, Lease.leasing_until==None).delete()
+    def cleanup_offers(self, mac):
+        Lease.query.with_parent(self).delete()
         db.session.commit()
 
-    def offer(self, client_identifier, test_func):
+    def offer(self, test_func):
         offer_timeout = datetime.now() - timedelta(seconds=app.config.get('DHCP_OFFER_TIMEOUT', 15))
 
         # cleanup expired leasing
@@ -87,14 +82,14 @@ class Node(Fixtured, db.Model):
             db.session.delete(existen_leasing)
             db.session.flush()
 
-        lease = Lease(self.mac, ip)
-        db.session.add(lease)
+        lease = Lease(ip)
+        self.leases.append(lease)
         db.session.commit()
 
         return ip
 
     def lease(self, ip, existen=None):
-        query = Lease.query.filter(Lease.chaddr==self.mac, Lease.yiaddr==ip)
+        query = Lease.query.with_parent(self).filter(Lease.yiaddr==ip)
         query = query.filter(Lease.leasing_until!=None) if existen else query
         return query.first()
 
@@ -115,31 +110,29 @@ class Node(Fixtured, db.Model):
 
 class Lease(db.Model):
     __tablename__ = 'leasing'
-    client_identifier = db.Column(db.String(255), nullable=True)
-    created = created = db.Column(db.DateTime, default=lambda: datetime.now())
-    chaddr = db.Column(Mac, db.ForeignKey(Node.mac), primary_key=True)
+    id = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
     yiaddr = db.Column(Ip, primary_key=True)
+    created = created = db.Column(db.DateTime, default=lambda: datetime.now())
     leasing_until = db.Column(db.DateTime, nullable=True) # null mean offered
 
-    def __init__(self, mac, yiaddr):
-        self.chaddr = mac
+    def __init__(self, yiaddr):
         self.yiaddr = yiaddr
 
     @declared_attr
     def node(cls):
         return db.relationship(Node, lazy='select', innerjoin=True,
-               backref=db.backref('leases', lazy='select', order_by=cls.created.desc()))
+               backref=db.backref('leases', lazy='joined', order_by=cls.created.desc()))
 
     @property
     def pool(self):
-        return db.object_session(self).query(Pool).filter(Pool.subnet==Node.pool_subnet, Node.mac==self.chaddr).first()
+        return db.object_session(self).query(Pool).filter(Pool.subnet==Node.pool_subnet, Node.id==self.id).first()
 
 
 class Decline(db.Model):
     __tablename__ = 'decline'
     created = created = db.Column(db.DateTime, default=lambda: datetime.now())
     ip = db.Column(Ip, primary_key=True)
-    reported_by = db.Column(Mac, db.ForeignKey(Node.mac), primary_key=True)
+    reported_by = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
 
     def __init__(self, ip, reported_by):
         self.ip = ip

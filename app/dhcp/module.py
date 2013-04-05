@@ -10,6 +10,7 @@ from pydhcplib.dhcp_packet import DhcpPacket
 from pydhcplib.dhcp_network import DhcpServer
 from pydhcplib.type_strlist import strlist
 from pydhcplib.type_ipv4 import ipv4
+from pydhcplib.type_hwmac import hwmac
 
 from pyping import Ping
 
@@ -41,11 +42,9 @@ class PyBootstapperDhcpWorker(DhcpServer):
         self.dhcp_socket.setsockopt(socket.SOL_SOCKET, IN.SO_BINDTODEVICE, self.listen_on_iface)
 
 
-    def _hw_addr2str(self, hw):
-        """
-        Convert MAC from list form to common unix form.
-        """
-        return ':'.join(map(lambda x: str(hex(x))[2:], hw))
+    def _client_id2str(self, id):
+        if id:
+            return str().join( chr( val ) for val in id )
 
 
     def _long2list(self, l):
@@ -70,24 +69,27 @@ class PyBootstapperDhcpWorker(DhcpServer):
         return Ping(str(ip), timeout=5000).do()
 
 
+    def HandleDhcpAll(self, packet):
+        packet.str_mac = str(hwmac(packet.GetHardwareAddress()))
+        packet.str_client_identifier = str().join( chr( val ) for val in packet.GetClientIdentifier() )
+
+
     def HandleDhcpDiscover(self, packet):
-        mac = self._hw_addr2str(packet.GetHardwareAddress())
-        self.logger.info('DISCOVER from %s', mac)
+        self.logger.info('DISCOVER from %s', packet.str_mac)
         self.logger.debug(packet.str())
 
-        client_identifier = self._list2long(packet.GetClientIdentifier())
-
-        node = Node.by_mac(mac)
+        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
 
         if node is None:
-            self.logger.info('Node %s has not listen in database', mac)
+            if packet.str_client_identifier:
+                self.logger.info('Node with client identifier "%s" has not listen in database', packet.str_client_identifier)
+            else:
+                self.logger.info('Node %s has not listen in database', packet.str_mac)
             return
-
-        client_identifier = self._list2long(packet.GetClientIdentifier())
 
         offer = DhcpPacket()
         offer.CreateDhcpOfferPacketFrom(packet)
-        yiaddr = node.offer(client_identifier, self.icmp_test_alive)
+        yiaddr = node.offer(self.icmp_test_alive)
 
         offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time)) # wrong!
         offer.SetOption("yiaddr", yiaddr.words)
@@ -96,28 +98,27 @@ class PyBootstapperDhcpWorker(DhcpServer):
         self.logger.debug(offer.str())
 
         if self.SendDhcpPacketTo(offer, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP offer to %s', mac)
+            self.logger.error('Could not send DHCP offer to %s', packet.str_mac)
 
 
     def nack(self, packet):
-        mac = self._hw_addr2str(packet.GetHardwareAddress())
         packet.TransformToDhcpNackPacket()
         if self.SendDhcpPacketTo(packet, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP NACK to %s', mac)
+            self.logger.error('Could not send DHCP NACK to %s', packet.str_mac)
 
 
     def HandleDhcpRequest(self, packet):
-        mac = self._hw_addr2str(packet.GetHardwareAddress())
 
-        self.logger.info('REQUEST from %s', mac)
+        self.logger.info('REQUEST from %s', packet.str_mac)
         self.logger.debug(packet.str())
 
-        # rfc5107
+        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
+
         if packet.GetOption('server_identifier'):
             server_ip = ipv4(self._list2long(packet.GetOption('server_identifier')))
             if server_ip != self.listen_on_ip:
-                self.logger.info('Node %s has accept offer from another server', mac)
-                Node.cleanup_offers_for_mac(mac)
+                self.logger.info('Node %s has accept offer from another server', packet.str_mac)
+                node.cleanup_offers(packet.str_client_identifier or packet.str_mac)
                 return
 
         renew_ip = self._list2long(packet.GetOption("ciaddr"))
@@ -126,15 +127,15 @@ class PyBootstapperDhcpWorker(DhcpServer):
         request_ip_address = renew_ip or new_ip
 
         if not request_ip_address:
-            self.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', mac)
+            self.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', packet.str_mac)
             self.nack(packet)
             return
 
-        node = Node.by_mac(mac)
+
         lease = node.lease(request_ip_address, existen=renew_ip)
 
         if not lease:
-            self.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), mac)
+            self.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), packet.str_mac)
             self.nack(packet)
             return
 
@@ -161,33 +162,31 @@ class PyBootstapperDhcpWorker(DhcpServer):
 
         self.logger.debug(ack.str())
         if self.SendDhcpPacketTo(ack, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP ACK to %s', mac)
+            self.logger.error('Could not send DHCP ACK to %s', packet.str_mac)
 
 
 
     def HandleDhcpDecline(self, packet):
-        mac = self._hw_addr2str(packet.GetHardwareAddress())
         self.logger.warning('DECLINE from %s for ip %s', self._hw_addr2str(packet.GetHardwareAddress()), packet.getOption('ciaddr'))
         self.logger.debug(packet.str())
 
         decline_ip = self._list2long(packet.GetOption('request_ip_address'))
 
-        node = Node.by_mac(mac)
+        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
         if node:
             node.decline(decline_ip)
 
 
     def HandleDhcpRelease(self, packet):
-        mac = self._hw_addr2str(packet.GetHardwareAddress())
         self.logger.info('RELEASE from %s', self._hw_addr2str(packet.GetHardwareAddress()))
         self.logger.debug(packet.str())
 
-        node = Node.by_mac(mac)
+        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
         node.release()
 
 
     def HandleDhcpInform(self, packet):
-        self.logger.info('INFORM from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.info('INFORM from %s', packet.str_mac)
         self.logger.debug(packet.str())
 
 
