@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% set title = 'Pools' %}
+
+{% block head %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/pools.js')}}"></script>
+{% endblock %}

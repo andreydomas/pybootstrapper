@@ -4,20 +4,24 @@ IPYTHON := ${ENV}/bin/ipython
 PIP :=  ${ENV}/bin/pip
 NOSETESTS := ${ENV}/bin/nosetests
 
-run:
+web:
 	${PYTHON} manager.py runserver
+
+dhcp:
+	${PYTHON} manager.py dhcp
+
 
 shell:
 	${PYTHON} manager.py shell
 
 env:
 	virtualenv --system-site-packages ${ENV}
-	${PIP} install twisted
-	${PIP} install Flask
-	${PIP} install Flask-SQLAlchemy
-	${PIP} install Flask-Script
-	${PIP} install netaddr
-	${PIP} install pyping
+	${PIP} install -U Flask
+	${PIP} install -U Flask-SQLAlchemy
+	${PIP} install -U Flask-Script
+	${PIP} install -U Flask-WTF
+	${PIP} install -U netaddr
+	${PIP} install -U pyping
 
 db: drop_db
 	${PYTHON} manager.py sync_db

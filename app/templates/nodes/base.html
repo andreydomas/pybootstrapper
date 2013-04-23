@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% set title = 'Nodes' %}
+
+{% block head %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/nodes.js')}}"></script>
+{% endblock %}

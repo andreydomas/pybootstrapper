@@ -1,0 +1,38 @@
+{% extends "pools/base.html" %}
+
+{% set sidebar_pools_list = True %}
+
+{% block content %}
+
+<table class="table table-hover pools-list">
+    <caption><h2>Pools</h2></caption>
+    <thead>
+        <tr>
+            <th>Subnet</th>
+            <th>Nodes</th>
+            <th>Leases</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pool in pools %}
+        <tr>
+
+            {% set pool_url_id = pool.subnet | replace("/", "_") %}
+
+            <td><a href="{{ url_for('.pool', id=pool_url_id) }}">{{ pool.subnet }}</a></td>
+
+            <td>
+                {% if pool.nodes %}<a href="{{ url_for('.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{% endif %}
+            </td>
+
+            <td>
+                {% if pool.leases %}<a href="{{ url_for('.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{% endif %}
+            </td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+
+</table>
+
+{% endblock %}

@@ -1,7 +1,9 @@
+import threading
 import logging
 import struct
 import fcntl
 import socket
+import select
 import IN
 
 from twisted.internet.task import LoopingCall, deferLater
@@ -17,14 +19,16 @@ from pyping import Ping
 from ..nodes.models import Node
 
 
-class PyBootstapperDhcpWorker(DhcpServer):
+class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
+
     def __init__(self, config, listen_on_iface):
 
         self.listen_on_iface = listen_on_iface
         self.logger = logging.getLogger('dhcp')
-        self.term_received = False
+        self.kill = False
 
         DhcpServer.__init__(self)
+        threading.Thread.__init__(self)
 
         listen_on = socket.inet_ntoa(fcntl.ioctl(
                             self.dhcp_socket.fileno(),
@@ -37,14 +41,10 @@ class PyBootstapperDhcpWorker(DhcpServer):
 
         self.logger.info('DHCP listen on %s(%s)', self.listen_on_ip, self.listen_on_iface)
 
+
     def CreateSocket(self):
         DhcpServer.CreateSocket(self)
         self.dhcp_socket.setsockopt(socket.SOL_SOCKET, IN.SO_BINDTODEVICE, self.listen_on_iface)
-
-
-    def _client_id2str(self, id):
-        if id:
-            return str().join( chr( val ) for val in id )
 
 
     def _long2list(self, l):
@@ -56,6 +56,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
         q.append(l >> 8 & 0xFF)
         q.append(l & 0xFF)
         return q
+
 
     def _list2long(self, l):
         """
@@ -167,7 +168,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
 
 
     def HandleDhcpDecline(self, packet):
-        self.logger.warning('DECLINE from %s for ip %s', self._hw_addr2str(packet.GetHardwareAddress()), packet.getOption('ciaddr'))
+        self.logger.warning('DECLINE from %s for ip %s', packet.str_mac, packet.getOption('ciaddr'))
         self.logger.debug(packet.str())
 
         decline_ip = self._list2long(packet.GetOption('request_ip_address'))
@@ -178,7 +179,7 @@ class PyBootstapperDhcpWorker(DhcpServer):
 
 
     def HandleDhcpRelease(self, packet):
-        self.logger.info('RELEASE from %s', self._hw_addr2str(packet.GetHardwareAddress()))
+        self.logger.info('RELEASE from %s', packet.str_mac)
         self.logger.debug(packet.str())
 
         node = Node.query.get(packet.str_client_identifier or packet.str_mac)
@@ -190,13 +191,26 @@ class PyBootstapperDhcpWorker(DhcpServer):
         self.logger.debug(packet.str())
 
 
-def init(reactor, config):
+    def run(self):
+        while not self.kill:
+            self.GetNextDhcpPacket(1)
+
+
+def init(config):
     dhcp_listen_on = config.get('DHCP_LISTEN', [])
 
-    def worker_wrapper(w):
-        while True:
-            w()
+    threads = []
 
     for iface in dhcp_listen_on:
-        worker = PyBootstapperDhcpWorker(config, iface + '\0').GetNextDhcpPacket
-        reactor.callFromThread(worker_wrapper, worker)
+        worker = PyBootstapperDhcpWorker(config, iface + '\0')
+        worker.daemon = True
+        threads.append(worker)
+        worker.start()
+
+    while len(threads) > 0:
+        try:
+            threads = [t.join(1) or t for t in threads if t is not None and t.isAlive()]
+        except KeyboardInterrupt:
+            print "Ctrl-c received! Sending kill to threads..."
+            for t in threads:
+                t.kill = True

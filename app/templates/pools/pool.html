@@ -1,0 +1,36 @@
+{% extends "pools/base.html" %}
+
+{% macro ctrl_group(field) %}
+<div class="control-group{% if field.errors %} error{% endif %}">
+    <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
+    <div class="controls">
+        {{ field }}
+        {%- if field.errors %}
+            <span class="help-inline">{{ field.errors[0] }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<form method="POST" class="form-horizontal">
+    <fieldset>
+        {{ form.hidden_tag() }}
+
+        <legend>Legend</legend>
+
+           {{ ctrl_group(form.subnet) }}
+           {{ ctrl_group(form.router) }}
+           {{ ctrl_group(form.domain) }}
+           {{ ctrl_group(form.time_offset) }}
+           {{ ctrl_group(form.lease_time) }}
+
+       <div class="control-group">
+           <div class="controls">
+               <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+       </div>
+
+    </fieldset>
+</form>
+{% endblock %}

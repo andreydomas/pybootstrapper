@@ -1,0 +1,41 @@
+{% extends "nodes/base.html" %}
+
+{% set sidebar_nodes_list = True %}
+
+{% block content %}
+
+<table class="table table-hover nodes-list">
+    <caption><h2>Nodes</h2></caption>
+    <thead>
+        <tr>
+            <th>Node ID</th>
+            <th>Hostname</th>
+            <th>Leasing created</th>
+            <th>Leasing until</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for node in nodes %}
+        <tr>
+
+            <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
+
+            <td>xxx</td>
+
+            {% if node.leases %}
+                {% set lease = node.leases[0] %}
+            {% else %}
+                {% set lease = dict() %}
+            {% endif%}
+
+            <td>{{ lease.created }}</td>
+
+            <td>{{ lease.leasing_until }}</td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+
+</table>
+
+{% endblock %}
