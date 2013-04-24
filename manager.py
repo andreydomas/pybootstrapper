@@ -7,7 +7,7 @@ if not app.debug:
     log_level = logging.WARN
 else:
     log_level = logging.DEBUG
-logging.basicConfig(level=log_level, format=app.config.get('LOG_FORMAT', '%(levelname)-8s [%(asctime)s]  %(message)s'))
+logging.basicConfig(level=log_level, format=app.config.get('LOG_FORMAT', '%(levelname)-8s [%(asctime)s]  %(message)s\n'))
 
 manager = Manager(app)
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from app import db, app
@@ -7,10 +8,10 @@ from ..sqla_types import *
 class Pool(Fixtured, db.Model):
     __tablename__ = 'pools'
 
-    def __init__(self, subnet):
+    def __init__(self, subnet=None):
         self.subnet = subnet
 
-    created = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now())
+    created = db.Column(db.DateTime, nullable=False, default=datetime.now)
     subnet = db.Column(Subnet(18), primary_key=True)
     router = db.Column(Ip, nullable=True)
     domain = db.Column(db.String(253), nullable=False)

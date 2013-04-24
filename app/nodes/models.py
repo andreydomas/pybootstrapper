@@ -1,6 +1,8 @@
 import re
 from datetime import datetime, timedelta
+from sqlalchemy import event
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm.attributes import get_history
 from netaddr import *
 
 from app import db, app
@@ -12,7 +14,7 @@ from ..sqla_types import *
 class Node(Fixtured, db.Model):
     __tablename__ = 'nodes'
     id = db.Column(db.String, primary_key=True)
-    created = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now())
+    created = db.Column(db.DateTime, nullable=False, default=datetime.now)
     hostname = db.Column(db.String(255), nullable=False)
     static_ip = db.Column(Ip, nullable=True)
     pool_subnet = db.Column(Subnet(18), db.ForeignKey(Pool.subnet), nullable=False)
@@ -26,25 +28,26 @@ class Node(Fixtured, db.Model):
                   primaryjoin=db.and_(cls.pool_subnet==Pool.subnet),
                   backref=db.backref('nodes', lazy='select', order_by=cls.created.desc()))
 
-    def cleanup_offers(self, mac):
+    def cleanup_offers(self):
         Lease.query.with_parent(self).delete()
         db.session.commit()
 
     def offer(self, test_func):
         offer_timeout = datetime.now() - timedelta(seconds=app.config.get('DHCP_OFFER_TIMEOUT', 15))
 
-        # cleanup expired leasing
+        # cleanup expired uncommited leasings
         Lease.query \
              .filter(Lease.leasing_until==None) \
-             .filter(Lease.created < offer_timeout ) \
+             .filter(Lease.created < offer_timeout) \
              .delete()
 
 
+        # get commited leasing
         existen_leasing = Lease.query.with_parent(self) \
-                                     .filter(Lease.leasing_until!=None) \
+                                     .filter(Lease.leasing_until!=None, Lease.force_expire==False) \
                                      .first()
 
-        ip = existen_leasing.yiaddr if existen_leasing else self.static_ip
+        ip = self.static_ip or (existen_leasing.yiaddr if existen_leasing else None)
 
         if not ip or test_func(ip):
             ip = self.pool.subnet.ip + 1
@@ -54,19 +57,19 @@ class Node(Fixtured, db.Model):
                     break
                 ip += 1
 
-        if existen_leasing:
-            db.session.delete(existen_leasing)
-            db.session.flush()
+        Lease.query.with_parent(self).filter(db.or_(Lease.force_expire==True, Lease.yiaddr==ip)).delete(synchronize_session='fetch')
+        db.session.flush()
 
         lease = Lease(ip)
         self.leases.append(lease)
+        db.session.add(lease)
         db.session.commit()
 
         return ip
 
     def lease(self, ip, existen=None):
-        query = Lease.query.with_parent(self).filter(Lease.yiaddr==ip)
-        query = query.filter(Lease.leasing_until!=None) if existen else query
+        query = Lease.query.with_parent(self).filter(Lease.yiaddr==ip, Lease.force_expire==False)
+        query = query.filter(Lease.leasing_until!=None) if existen else query.filter(Lease.leasing_until==None)
         return query.first()
 
     def decline(self, ip):
@@ -80,17 +83,26 @@ class Node(Fixtured, db.Model):
         db.session.commit()
 
     def release(self):
-        Lease.query.with_parent(self).delete()
+        self.cleanup_offers()
+
+
+
+@event.listens_for(Node, 'before_update')
+def leasing_force_expiration(mapper, connection, target):
+    added, unchanged, deleted = get_history(target, 'static_ip')
+    if added or deleted:
+        Lease.query.with_parent(target).update({'force_expire': True})
 
 
 class Lease(db.Model):
     __tablename__ = 'leasing'
     id = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
     yiaddr = db.Column(Ip, primary_key=True)
-    created = db.Column(db.DateTime, default=lambda: datetime.now(), nullable=False)
+    created = db.Column(db.DateTime, default=datetime.now, nullable=False)
     leasing_until = db.Column(db.DateTime, nullable=True) # null mean offered
+    force_expire = db.Column(db.Boolean, nullable=False, default=False)
 
-    def __init__(self, yiaddr):
+    def __init__(self, yiaddr=None):
         self.yiaddr = yiaddr
 
     @declared_attr
@@ -107,7 +119,7 @@ class Lease(db.Model):
 
 class Decline(db.Model):
     __tablename__ = 'decline'
-    created = db.Column(db.DateTime, default=lambda: datetime.now(), nullable=False)
+    created = db.Column(db.DateTime, default=datetime.now, nullable=False)
     ip = db.Column(Ip, primary_key=True)
     reported_by = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
 

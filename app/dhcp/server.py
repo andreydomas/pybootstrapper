@@ -119,7 +119,7 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
             server_ip = ipv4(self._list2long(packet.GetOption('server_identifier')))
             if server_ip != self.listen_on_ip:
                 self.logger.info('Node %s has accept offer from another server', packet.str_mac)
-                node.cleanup_offers(packet.str_client_identifier or packet.str_mac)
+                node.cleanup_offers()
                 return
 
         renew_ip = self._list2long(packet.GetOption("ciaddr"))

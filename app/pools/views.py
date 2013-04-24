@@ -49,6 +49,7 @@ def pool(id):
 
             if not pool:
                 pool = models.Pool()
+                db.session.add(pool)
 
             form.populate_obj(pool)
             db.session.commit()
