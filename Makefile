@@ -20,6 +20,7 @@ env:
 	${PIP} install -U Flask-SQLAlchemy
 	${PIP} install -U Flask-Script
 	${PIP} install -U Flask-WTF
+	${PIP} install -U Flask-Uploads
 	${PIP} install -U netaddr
 	${PIP} install -U pyping
 

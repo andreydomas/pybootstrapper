@@ -69,9 +69,7 @@ class DhcpPacket(DhcpBasicPacket):
             if opt=='dhcp_message_type' : result = DhcpFieldsName['dhcp_message_type'][str(data[0])]
             elif DhcpOptionsTypes[optnum] == "char" : result = str(data[0])
             elif DhcpOptionsTypes[optnum] == "16-bits" : result = str(data[0]*256+data[0])
-            elif DhcpOptionsTypes[optnum] == "32-bits" :
-                print opt
-                result = str(ipv4(data).int())
+            elif DhcpOptionsTypes[optnum] == "32-bits" : result = str(ipv4(data).int())
             elif DhcpOptionsTypes[optnum] == "string" :
                 for each in data :
                     if each != 0 : result += chr(each)

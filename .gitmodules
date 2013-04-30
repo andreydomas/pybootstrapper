@@ -1,0 +1,3 @@
+[submodule "app/static/js/LDT"]
+	path = app/static/js/LDT
+	url = https://github.com/kueblc/LDT.git

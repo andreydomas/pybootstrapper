@@ -25,7 +25,13 @@
             {% block sidebar %}
                 <ul class="nav nav-list">
 
+                    <li class="nav-header">Farms</li>
+                    <li class="{{ sidebar_active(sidebar_farms_new) }}"><a href="{{ url_for('farms.farm') }}">New</a></li>
+                    <li class="{{ sidebar_active(sidebar_farms_list) }}"><a href="{{ url_for('farms.list') }}">List</a></li>
+                    <li class="{{ sidebar_active(sidebar_farms_images) }}"><a href="{{ url_for('farms.images') }}">Images</a></li>
+
                     <li class="nav-header">Pools</li>
+                    <li class="{{ sidebar_active(sidebar_pools_new) }}"><a href="{{ url_for('pools.pool') }}">New</a></li>
                     <li class="{{ sidebar_active(sidebar_pools_list) }}"><a href="{{ url_for('pools.list') }}">List</a></li>
 
                     <li class="nav-header">Nodes</li>

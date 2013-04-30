@@ -5,7 +5,7 @@ from netaddr import IPAddress, IPNetwork, EUI, AddrFormatError
 def form_ip_validator(form, field):
     if field.data:
         try:
-            IPAddress(field.data)
+            IPAddress(str(field.data))
         except AddrFormatError:
             raise ValidationError('Invalid IP')
 
@@ -13,7 +13,7 @@ def form_ip_validator(form, field):
 def form_mac_validator(form, field):
     if field.data:
         try:
-            EUI(field.data)
+            EUI(str(field.data))
         except AddrFormatError:
             raise ValidationError('Invalid MAC')
 
@@ -21,6 +21,6 @@ def form_mac_validator(form, field):
 def form_net_validator(form, field):
     if field.data:
         try:
-            IPNetwork(field.data)
+            IPNetwork(str(field.data))
         except AddrFormatError:
             raise ValidationError('Invalid network')

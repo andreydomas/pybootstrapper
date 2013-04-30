@@ -5,8 +5,9 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm.attributes import get_history
 from netaddr import *
 
-from app import db, app
+from app.ext import db
 from ..pools.models import Pool
+from ..farms.models import Farm
 from ..models import Fixtured
 from ..sqla_types import *
 
@@ -28,12 +29,14 @@ class Node(Fixtured, db.Model):
                   primaryjoin=db.and_(cls.pool_subnet==Pool.subnet),
                   backref=db.backref('nodes', lazy='select', order_by=cls.created.desc()))
 
+    farm = db.relationship(Farm, backref='nodes', secondary=Pool.__table__)
+
     def cleanup_offers(self):
         Lease.query.with_parent(self).delete()
         db.session.commit()
 
     def offer(self, test_func):
-        offer_timeout = datetime.now() - timedelta(seconds=app.config.get('DHCP_OFFER_TIMEOUT', 15))
+        offer_timeout = datetime.now() - timedelta(seconds=15)
 
         # cleanup expired uncommited leasings
         Lease.query \
@@ -89,9 +92,17 @@ class Node(Fixtured, db.Model):
 
 @event.listens_for(Node, 'before_update')
 def leasing_force_expiration(mapper, connection, target):
+
+    expired = False
+
     added, unchanged, deleted = get_history(target, 'static_ip')
-    if added or deleted:
-        Lease.query.with_parent(target).update({'force_expire': True})
+    expired = expired or added or deleted
+
+    added, unchanged, deleted = get_history(target, 'pool_subnet')
+    expired = expired or added or deleted
+
+    if expired:
+       Lease.query.with_parent(target).update({'force_expire': True})
 
 
 class Lease(db.Model):

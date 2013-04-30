@@ -6,8 +6,7 @@ import socket
 import select
 import IN
 
-from twisted.internet.task import LoopingCall, deferLater
-
+from functools import wraps
 from pydhcplib.dhcp_packet import DhcpPacket
 from pydhcplib.dhcp_network import DhcpServer
 from pydhcplib.type_strlist import strlist
@@ -18,14 +17,32 @@ from pyping import Ping
 
 from ..nodes.models import Node
 
+def flask_context_push(f):
+    def wrapper(*args, **kwargs):
+        self = args[0]
+        self.current_flask_ctx = self.app.app_context()
+        self.current_flask_ctx.push()
+        return f(*args, **kwargs)
+    return wrapper
+
+def flask_context_pop(f):
+    def wrapper(*args, **kwargs):
+        r = f(*args, **kwargs)
+        self = args[0]
+        self.current_flask_ctx.pop()
+        return r
+    return wrapper
+
 
 class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
 
-    def __init__(self, config, listen_on_iface):
+    def __init__(self, app, listen_on_iface):
+
+        self.app = app
 
         self.listen_on_iface = listen_on_iface
-        self.logger = logging.getLogger('dhcp')
         self.kill = False
+
 
         DhcpServer.__init__(self)
         threading.Thread.__init__(self)
@@ -39,7 +56,7 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         self.listen_on_ip = ipv4(listen_on)
         self.broadcast = str(ipv4([255,255,255,255]))
 
-        self.logger.info('DHCP listen on %s(%s)', self.listen_on_ip, self.listen_on_iface)
+        self.app.logger.info('DHCP listen on %s(%s)', self.listen_on_ip, self.listen_on_iface)
 
 
     def CreateSocket(self):
@@ -70,55 +87,60 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         return Ping(str(ip), timeout=5000).do()
 
 
+    @flask_context_push
     def HandleDhcpAll(self, packet):
         packet.str_mac = str(hwmac(packet.GetHardwareAddress()))
         packet.str_client_identifier = str().join( chr( val ) for val in packet.GetClientIdentifier() )
 
 
+    @flask_context_pop
     def HandleDhcpDiscover(self, packet):
-        self.logger.info('DISCOVER from %s', packet.str_mac)
-        self.logger.debug(packet.str())
+        self.app.logger.info('DISCOVER from %s', packet.str_mac)
+        self.app.logger.debug(packet.str())
 
         node = Node.query.get(packet.str_client_identifier or packet.str_mac)
 
         if node is None:
             if packet.str_client_identifier:
-                self.logger.info('Node with client identifier "%s" has not listen in database', packet.str_client_identifier)
+                self.app.logger.info('Node with client identifier "%s" has not listen in database', packet.str_client_identifier)
             else:
-                self.logger.info('Node %s has not listen in database', packet.str_mac)
+                self.app.logger.info('Node %s has not listen in database', packet.str_mac)
             return
 
         offer = DhcpPacket()
         offer.CreateDhcpOfferPacketFrom(packet)
         yiaddr = node.offer(self.icmp_test_alive)
 
-        offer.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time)) # wrong!
+        for opt in node.pool.options:
+            offer.SetOption(opt.option, opt.binary)
+
         offer.SetOption("yiaddr", yiaddr.words)
         offer.SetOption("siaddr", self.listen_on_ip.list())
 
-        self.logger.debug(offer.str())
+        self.app.logger.debug(offer.str())
 
         if self.SendDhcpPacketTo(offer, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP offer to %s', packet.str_mac)
+            self.app.logger.error('Could not send DHCP offer to %s', packet.str_mac)
 
 
     def nack(self, packet):
         packet.TransformToDhcpNackPacket()
         if self.SendDhcpPacketTo(packet, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP NACK to %s', packet.str_mac)
+            self.app.logger.error('Could not send DHCP NACK to %s', packet.str_mac)
 
 
+    @flask_context_pop
     def HandleDhcpRequest(self, packet):
 
-        self.logger.info('REQUEST from %s', packet.str_mac)
-        self.logger.debug(packet.str())
+        self.app.logger.info('REQUEST from %s', packet.str_mac)
+        self.app.logger.debug(packet.str())
 
         node = Node.query.get(packet.str_client_identifier or packet.str_mac)
 
         if packet.GetOption('server_identifier'):
             server_ip = ipv4(self._list2long(packet.GetOption('server_identifier')))
             if server_ip != self.listen_on_ip:
-                self.logger.info('Node %s has accept offer from another server', packet.str_mac)
+                self.app.logger.info('Node %s has accept offer from another server', packet.str_mac)
                 node.cleanup_offers()
                 return
 
@@ -128,7 +150,7 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         request_ip_address = renew_ip or new_ip
 
         if not request_ip_address:
-            self.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', packet.str_mac)
+            self.app.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', packet.str_mac)
             self.nack(packet)
             return
 
@@ -136,40 +158,31 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         lease = node.lease(request_ip_address, existen=renew_ip)
 
         if not lease:
-            self.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), packet.str_mac)
+            self.app.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), packet.str_mac)
             self.nack(packet)
             return
 
         ack = DhcpPacket()
         ack.CreateDhcpAckPacketFrom(packet)
-        ack.SetOption('ip_address_lease_time', self._long2list(node.pool.lease_time))
+
+        for opt in node.pool.options:
+            ack.SetOption(opt.option, list(opt.binary))
+
         ack.SetOption("yiaddr", lease.yiaddr.words)
-        ack.SetOption("broadcast_address", list(node.pool.subnet.broadcast.words))
-        ack.SetOption("time_offset", self._long2list(node.pool.time_offset))
         ack.SetOption("siaddr", self.listen_on_ip.list())
-        ack.SetOption("domain_name", strlist(str(node.pool.domain)).list())
-        ack.SetOption("router", list(node.pool.router.words))
-        ack.SetOption("host_name", strlist(str(node.hostname)).list())
-
-        if node.pool.domain_name_servers:
-            name_servers = [ip.words for ip in node.pool.domain_name_servers]
-            ack.SetOption("domain_name_server", list(reduce(lambda x,y: x+y,name_servers)))
-
-        if node.pool.ntp_servers:
-            ntp_servers = [ip.words for ip in node.pool.ntp_servers]
-            ack.SetOption("ntp_servers", list(reduce(lambda x,y: x+y,ntp_servers)))
 
         node.commit_lease(lease)
 
-        self.logger.debug(ack.str())
+        self.app.logger.debug(ack.str())
         if self.SendDhcpPacketTo(ack, self.broadcast, self.emit_port) <= 0:
-            self.logger.error('Could not send DHCP ACK to %s', packet.str_mac)
+            self.app.logger.error('Could not send DHCP ACK to %s', packet.str_mac)
 
 
 
+    @flask_context_pop
     def HandleDhcpDecline(self, packet):
-        self.logger.warning('DECLINE from %s for ip %s', packet.str_mac, packet.getOption('ciaddr'))
-        self.logger.debug(packet.str())
+        self.app.logger.warning('DECLINE from %s for ip %s', packet.str_mac, packet.getOption('ciaddr'))
+        self.app.logger.debug(packet.str())
 
         decline_ip = self._list2long(packet.GetOption('request_ip_address'))
 
@@ -178,17 +191,19 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
             node.decline(decline_ip)
 
 
+    @flask_context_pop
     def HandleDhcpRelease(self, packet):
-        self.logger.info('RELEASE from %s', packet.str_mac)
-        self.logger.debug(packet.str())
+        self.app.logger.info('RELEASE from %s', packet.str_mac)
+        self.app.logger.debug(packet.str())
 
         node = Node.query.get(packet.str_client_identifier or packet.str_mac)
         node.release()
 
 
+    @flask_context_pop
     def HandleDhcpInform(self, packet):
-        self.logger.info('INFORM from %s', packet.str_mac)
-        self.logger.debug(packet.str())
+        self.app.logger.info('INFORM from %s', packet.str_mac)
+        self.app.logger.debug(packet.str())
 
 
     def run(self):
@@ -196,13 +211,16 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
             self.GetNextDhcpPacket(1)
 
 
-def init(config):
-    dhcp_listen_on = config.get('DHCP_LISTEN', [])
+def init(create_app):
+
+    app = create_app()
+
+    dhcp_listen_on = app.config.get('DHCP_LISTEN', [])
 
     threads = []
 
     for iface in dhcp_listen_on:
-        worker = PyBootstapperDhcpWorker(config, iface + '\0')
+        worker = PyBootstapperDhcpWorker(app, iface + '\0')
         worker.daemon = True
         threads.append(worker)
         worker.start()

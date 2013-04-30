@@ -1,19 +1,14 @@
 import logging
 from flask.ext.script import Manager
 
-from app import app, db
+from app import create_app
+from app.ext import db
 
-if not app.debug:
-    log_level = logging.WARN
-else:
-    log_level = logging.DEBUG
-logging.basicConfig(level=log_level, format=app.config.get('LOG_FORMAT', '%(levelname)-8s [%(asctime)s]  %(message)s\n'))
-
-manager = Manager(app)
+manager = Manager(create_app)
 
 @manager.command
 def sync_db():
-    db.create_all(app=app)
+    db.create_all(app=create_app())
 
 @manager.command
 def drop_db():
@@ -24,15 +19,16 @@ def fixtures():
     logger = logging.getLogger('fixtures')
     from os import path
     from yaml import load_all
-    from app.nodes.models import Node, Pool
+    from app.nodes.models import Node, Pool, Farm
 
     fixtures_dir = path.dirname(path.realpath(__file__)) + '/fixtures'
     fixtures_classes_factories = {
+            'Farm': Farm,
             'Node': Node,
             'Pool': Pool,
     }
 
-    sequence = ['Pool', 'Node']
+    sequence = ['Farm', 'Pool', 'Node']
 
     for fx in sequence:
         f = fixtures_dir + '/' + fx
@@ -50,7 +46,7 @@ def fixtures():
 @manager.command
 def dhcp():
     from app.dhcp.server import init
-    init(app.config)
+    init(create_app)
 
 if __name__ == "__main__":
         manager.run()

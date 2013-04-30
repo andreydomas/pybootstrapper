@@ -1,5 +1,7 @@
 {% extends "pools/base.html" %}
 
+{% set sidebar_pools_new = True %}
+
 {% macro ctrl_group(field) %}
 <div class="control-group{% if field.errors %} error{% endif %}">
     <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
@@ -12,18 +14,26 @@
 </div>
 {% endmacro %}
 
+{% block head %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/LDT/lib/Parser.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/LDT/lib/TextareaDecorator.js')}}"></script>
+    <link href="{{ url_for('static', filename='js/LDT/lib/TextareaDecorator.css')}}" rel="stylesheet" media="screen">
+{% endblock %}
+
 {% block content %}
 <form method="POST" class="form-horizontal">
     <fieldset>
         {{ form.hidden_tag() }}
 
-        <legend>Legend</legend>
+        <legend>{{ pool.subnet | default('New pool') }}</legend>
 
-           {{ ctrl_group(form.subnet) }}
-           {{ ctrl_group(form.router) }}
-           {{ ctrl_group(form.domain) }}
-           {{ ctrl_group(form.time_offset) }}
-           {{ ctrl_group(form.lease_time) }}
+        {{ ctrl_group(form.subnet) }}
+
+        {{ ctrl_group(form.farm) }}
+
+        {{ ctrl_group(form.options) }}
+        <noscript>Please enable JavaScript to allow syntax highlighting.</noscript>
 
        <div class="control-group">
            <div class="controls">

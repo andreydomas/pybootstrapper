@@ -5,11 +5,15 @@
 {% block content %}
 
 <table class="table table-hover nodes-list">
-    <caption><h2>Nodes</h2></caption>
+    <caption>
+        <h2>{{ caption | default('Nodes') }}</h2>
+    </caption>
     <thead>
         <tr>
             <th>Node ID</th>
             <th>Hostname</th>
+            <th>Farm</th>
+            <th>Pool</th>
             <th>Leasing created</th>
             <th>Leasing until</th>
         </tr>
@@ -20,7 +24,11 @@
 
             <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
 
-            <td>xxx</td>
+            <td>{{ node.hostname }}</td>
+
+            <td>{{ node.pool.farm }}</td/>
+
+            <td>{{ node.pool }}</td>
 
             {% if node.leases %}
                 {% set lease = node.leases[0] %}

@@ -1,6 +1,6 @@
 {% extends "nodes/base.html" %}
 
-{% set sidebar_nodes_new = True %}
+{% set sidebar_farms_new = True %}
 
 {% macro ctrl_group(field) %}
 <div class="control-group{% if field.errors %} error{% endif %}">
@@ -20,11 +20,9 @@
     <fieldset>
         {{ form.hidden_tag() }}
 
-        <legend>{{ node.id | default('New node')}}</legend>
+        <legend>{{ farm.name | default('New farm') }}</legend>
 
-           {{ ctrl_group(form.id) }}
-           {{ ctrl_group(form.static_ip) }}
-           {{ ctrl_group(form.pool) }}
+           {{ ctrl_group(form.name) }}
 
        <div class="control-group">
            <div class="controls">
