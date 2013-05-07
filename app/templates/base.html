@@ -25,6 +25,9 @@
             {% block sidebar %}
                 <ul class="nav nav-list">
 
+                    <li class="nav-header">Kernels</li>
+                    <li class="{{ sidebar_active(sidebar_kernels_list) }}"><a href="{{ url_for('kernels.list') }}">List</a></li>
+
                     <li class="nav-header">Farms</li>
                     <li class="{{ sidebar_active(sidebar_farms_new) }}"><a href="{{ url_for('farms.farm') }}">New</a></li>
                     <li class="{{ sidebar_active(sidebar_farms_list) }}"><a href="{{ url_for('farms.list') }}">List</a></li>

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% set title = 'Kernels' %}
+
+{% block head %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/kernels.js')}}"></script>
+{% endblock %}

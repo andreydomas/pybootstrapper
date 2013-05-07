@@ -1,5 +1,8 @@
 import re
-from flask.ext.wtf import Form, TextField, DataRequired, FileField
+from flask.ext.wtf import Form, TextField, DataRequired, FileField, QuerySelectField
+
+from ..kernels.models import Kernel
+import models
 
 
 class FarmForm(Form):
@@ -10,4 +13,7 @@ class FarmForm(Form):
             field.data = re.sub(r'[^a-z0-9_.-]', '_', field.data)
 
 class BootImageForm(Form):
-    image =FileField('Boot image', validators=[DataRequired()])
+    image = FileField('Boot image', validators=[DataRequired()])
+    kernel = QuerySelectField('Kernel',
+                query_factory=lambda: Kernel.query.all(),
+                validators=[DataRequired(), ])

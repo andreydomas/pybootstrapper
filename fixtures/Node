@@ -4,10 +4,9 @@ hostname: 'node1'
 pool_subnet: '192.168.56.0/24'
 ---
 created: 2012-11-11 03:10:00
-id: '22:22:22:22:22:22'
+id: '08:00:27:ee:a3:b1'
 hostname: 'node2'
-static_ip: '192.168.0.2'
-pool_subnet: '192.168.0.0/24'
+pool_subnet: '192.168.56.0/24'
 ---
 created: 2013-01-08 12:15:20
 id: '33:33:33:33:33:33'

@@ -43,10 +43,18 @@ def fixtures():
             db.session.add_all(instances)
             db.session.commit()
 
+
 @manager.command
 def dhcp():
     from app.dhcp.server import init
     init(create_app)
+
+
+@manager.command
+def tftp():
+    from app.tftp.server import init
+    init(create_app)
+
 
 if __name__ == "__main__":
         manager.run()

@@ -2,7 +2,7 @@ from flask import Flask, redirect, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flaskext.uploads import configure_uploads
 
-from app.ext import db, images_store
+from app.ext import db, images_store, kernels_store
 
 __all__ = ["create_app"]
 
@@ -17,6 +17,7 @@ def create_app():
 def init_ext(app):
     db.init_app(app)
     configure_uploads(app, images_store)
+    configure_uploads(app, kernels_store)
 
 
 def init_blueprints(app):
@@ -28,6 +29,9 @@ def init_blueprints(app):
 
     from app.farms.views import mod as farmsModule
     app.register_blueprint(farmsModule)
+
+    from app.kernels.views import mod as kernelsModule
+    app.register_blueprint(kernelsModule)
 
     @app.route('/')
     def redirect_to_default():

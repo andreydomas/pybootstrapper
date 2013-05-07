@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template, request, redirect, url_for, abort, current_app
-from werkzeug import secure_filename
 
 from app.ext import db, images_store
 from ..pools.models import Pool
@@ -26,10 +25,12 @@ def nodes(name):
     farm = models.Farm.query.filter(models.Farm.name==name).first_or_404()
     return render_template("nodes/list.html", nodes=farm.nodes, caption='Farm %s nodes' % farm.name)
 
+
 @mod.route('/<string:name>/nodes', methods=['POST'])
 def new_node(name, pool, mac):
     farm = models.Farm.query.filter(models.Farm.name==name).first_or_404()
     pool = Pool.query.with_parent(farm).filter(Pool.subnet==pool).first_or_404()
+
 
 @mod.route('/<string:name>/images', methods=['GET'])
 @mod.route('/images', methods=['GET'], defaults={'name': None})
@@ -56,7 +57,7 @@ def new_image(name, version):
         if image:
             return 'Version %s of image for farm %s already exist!' % (version, farm.name), 400
 
-        image = models.BootImage(farm, version)
+        image = models.BootImage(farm, version, form.kernel.data)
 
         db.session.add(image)
 

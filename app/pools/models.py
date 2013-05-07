@@ -37,8 +37,8 @@ class Pool(Fixtured, db.Model, object):
         options = []
 
         if self.farm and self.farm.boot_images:
-            options.append(PoolOption('bootfile_name', self.farm.boot_images[0].tftp_path))
-            options.append(PoolOption('tftp_server_name', current_app.config.get('TFTP_ADDRESS')))
+            options.append(PoolOption('bootfile_name', 'pxelinux.0'))
+            options.append(PoolOption('tftp_server_name', current_app.config.get('TFTP_LISTEN')))
 
         if 'ip_address_lease_time' not in options:
             options.append(PoolOption('ip_address_lease_time', 3600))

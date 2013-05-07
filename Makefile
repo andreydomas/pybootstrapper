@@ -10,6 +10,8 @@ web:
 dhcp:
 	${PYTHON} manager.py dhcp
 
+tftp:
+	${PYTHON} manager.py tftp
 
 shell:
 	${PYTHON} manager.py shell
@@ -23,6 +25,7 @@ env:
 	${PIP} install -U Flask-Uploads
 	${PIP} install -U netaddr
 	${PIP} install -U pyping
+	${PIP} install -U tftpy
 
 db: drop_db
 	${PYTHON} manager.py sync_db

@@ -27,7 +27,7 @@
             </td>
 
             <td>
-                {{ pool.farm }}
+                <a href="{{ url_for('farms.farm', name=pool.farm.name) }}">{{ pool.farm }}</a>
             </td>
 
             <td>

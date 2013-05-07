@@ -13,7 +13,7 @@ def list():
     nodes = models.Node.query.all()
     return render_template("nodes/list.html", nodes=nodes)
 
-@mod.route('/<id>', methods=['GET', 'POST'])
+@mod.route('/<string:id>', methods=['GET', 'POST'])
 def node(id):
 
     node = None

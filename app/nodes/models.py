@@ -14,7 +14,7 @@ from ..sqla_types import *
 
 class Node(Fixtured, db.Model):
     __tablename__ = 'nodes'
-    id = db.Column(db.String, primary_key=True)
+    id = db.Column(Mac, primary_key=True)
     created = db.Column(db.DateTime, nullable=False, default=datetime.now)
     hostname = db.Column(db.String(255), nullable=False)
     static_ip = db.Column(Ip, nullable=True)
@@ -107,7 +107,7 @@ def leasing_force_expiration(mapper, connection, target):
 
 class Lease(db.Model):
     __tablename__ = 'leasing'
-    id = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
+    id = db.Column(Mac, db.ForeignKey(Node.id), primary_key=True)
     yiaddr = db.Column(Ip, primary_key=True)
     created = db.Column(db.DateTime, default=datetime.now, nullable=False)
     leasing_until = db.Column(db.DateTime, nullable=True) # null mean offered
@@ -132,7 +132,7 @@ class Decline(db.Model):
     __tablename__ = 'decline'
     created = db.Column(db.DateTime, default=datetime.now, nullable=False)
     ip = db.Column(Ip, primary_key=True)
-    reported_by = db.Column(db.String, db.ForeignKey(Node.id), primary_key=True)
+    reported_by = db.Column(Mac, db.ForeignKey(Node.id), primary_key=True)
 
     def __init__(self, ip, reported_by):
         self.ip = ip

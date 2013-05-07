@@ -1,0 +1,37 @@
+{% extends "farms/base.html" %}
+
+{% set sidebar_kernels_list = True %}
+
+{% block content %}
+
+<table class="table table-hover nodes-list">
+    <caption>
+        <h2>{{ caption | default('Kernels') }}</h2>
+    </caption>
+    <thead>
+        <tr>
+            <th>Created</th>
+            <th>Name</th>
+            <th>Images</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for kernel in kernels %}
+        <tr>
+            <td>
+                {{ kernel.created }}
+            </td>
+            <td>
+                {{ kernel.name }}
+            </td>
+            <td>
+                {% set images_count = kernel.boot_images | sum(attribute='images_count') %}
+                {% if images_count %}{{ images_count }}{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+
+</table>
+
+{% endblock %}
