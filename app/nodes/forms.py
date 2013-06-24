@@ -21,3 +21,8 @@ class NodeForm(Form):
             validators=[form_ip_validator],
             filters=[str2ip]
             )
+
+    boot_image = QuerySelectField('Image version',
+                            get_pk=lambda image: image.version,
+                            allow_blank=True
+                        )

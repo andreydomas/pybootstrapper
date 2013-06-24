@@ -3,11 +3,12 @@ from datetime import datetime, timedelta
 from sqlalchemy import event
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm.attributes import get_history
+from flask import current_app, url_for
 from netaddr import *
 
 from app.ext import db
-from ..pools.models import Pool
-from ..farms.models import Farm
+from ..pools.models import Pool, PoolOption
+from ..farms.models import Farm, BootImage
 from ..models import Fixtured
 from ..sqla_types import *
 
@@ -19,6 +20,7 @@ class Node(Fixtured, db.Model):
     hostname = db.Column(db.String(255), nullable=False)
     static_ip = db.Column(Ip, nullable=True)
     pool_subnet = db.Column(Subnet(18), db.ForeignKey(Pool.subnet), nullable=False)
+    boot_image_version = db.Column(db.String(), db.ForeignKey(BootImage.version))
 
     def __repr__(self):
         return '%s(%s) - %s from pool %s' % (self.__class__.__name__, self.id, self.hostname, self.pool_subnet)
@@ -29,7 +31,9 @@ class Node(Fixtured, db.Model):
                   primaryjoin=db.and_(cls.pool_subnet==Pool.subnet),
                   backref=db.backref('nodes', lazy='select', order_by=cls.created.desc()))
 
-    farm = db.relationship(Farm, backref='nodes', secondary=Pool.__table__)
+    farm = db.relationship(Farm, backref='nodes', secondary=Pool.__table__, uselist=False, lazy='joined')
+    boot_image = db.relationship(BootImage, backref='nodes', lazy='joined')
+
 
     def cleanup_offers(self):
         Lease.query.with_parent(self).delete()
@@ -89,6 +93,43 @@ class Node(Fixtured, db.Model):
         self.cleanup_offers()
 
 
+    def _options(self, add):
+        lease_time = None
+
+        yield PoolOption('subnet_mask', str(self.pool.subnet.netmask))
+
+        for opt in self.pool.options:
+            if opt.option == 'ip_address_lease_time':
+                lease_time = opt
+            yield opt
+
+        for opt in add:
+            if opt.option == 'ip_address_lease_time':
+                lease_time = opt
+            yield opt
+
+        yield PoolOption('host_name', self.hostname)
+
+        if not lease_time:
+            yield PoolOption('ip_address_lease_time', current_app.config.get('DHCP_LEASE_TIME', 3600))
+
+    @property
+    def pxe_options(self):
+        return self._options([
+                    PoolOption('bootfile_name', 'gpxelinux.0'),
+                    PoolOption('tftp_server_name', current_app.config.get('TFTP_LISTEN')),
+                ])
+
+
+    @property
+    def gpxe_options(self):
+        return self._options([
+                    PoolOption('bootfile_name',
+                    #    # url_for cannot be used because it depends on SERVER_NAME
+                    #    # but werkzeug tests port number in Host header and gpxelinux strips the number from the header
+                        '%s/nodes/%s/gpxelinux.conf' % (current_app.config['GPXELINUX_HTTP_PREFIX'], self.id)
+                    )
+                ])
 
 @event.listens_for(Node, 'before_update')
 def leasing_force_expiration(mapper, connection, target):

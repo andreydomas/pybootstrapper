@@ -1,7 +1,6 @@
 import re
 from datetime import datetime
 from sqlalchemy.ext.declarative import declared_attr
-from flask import current_app
 
 from app.ext import db
 from ..models import Fixtured
@@ -33,18 +32,7 @@ class Pool(Fixtured, db.Model, object):
 
     @property
     def options(self):
-
-        options = []
-
-        if self.farm and self.farm.boot_images:
-            options.append(PoolOption('bootfile_name', 'pxelinux.0'))
-            options.append(PoolOption('tftp_server_name', current_app.config.get('TFTP_LISTEN')))
-
-        if 'ip_address_lease_time' not in options:
-            options.append(PoolOption('ip_address_lease_time', 3600))
-
-        options.extend(self._options)
-        return options
+        return self._options
 
     @options.setter
     def options(self, opts_list):
@@ -60,7 +48,7 @@ class PoolOption(Fixtured, db.Model):
     pool_subnet = db.Column(Subnet(18), db.ForeignKey(Pool.subnet), primary_key=True)
     _option = db.Column('option', db.String(253), nullable=False, primary_key=True)
     value = db.Column(db.String(253), nullable=False)
-    pool = db.relationship(Pool, lazy='select', innerjoin=True, single_parent=True,
+    pool = db.relationship(Pool, lazy='select', innerjoin=True, single_parent=True, uselist=True,
                 backref='_options'
             )
 

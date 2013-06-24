@@ -1,8 +1,8 @@
-{% extends "nodes/base.html" %}
+{%- extends "nodes/base.html" -%}
 
-{% set sidebar_nodes_list = True %}
+{%- set sidebar_nodes_list = True -%}
 
-{% block content %}
+{%- block content -%}
 
 <table class="table table-hover nodes-list">
     <caption>
@@ -13,13 +13,14 @@
             <th>Node ID</th>
             <th>Hostname</th>
             <th>Farm</th>
+            <th>Image</th>
             <th>Pool</th>
             <th>Leasing created</th>
             <th>Leasing until</th>
         </tr>
     </thead>
     <tbody>
-        {% for node in nodes %}
+        {%- for node in nodes -%}
         <tr>
 
             <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
@@ -28,22 +29,24 @@
 
             <td>{{ node.pool.farm }}</td/>
 
+            <td>{%- if node.boot_image -%}{{ node.boot_image }}{%- endif -%}</td>
+
             <td>{{ node.pool }}</td>
 
-            {% if node.leases %}
-                {% set lease = node.leases[0] %}
-            {% else %}
-                {% set lease = dict() %}
-            {% endif%}
+            {%- if node.leases -%}
+                {%- set lease = node.leases[0] -%}
+            {%- else -%}
+                {%- set lease = dict() -%}
+            {%- endif-%}
 
             <td>{{ lease.created }}</td>
 
             <td>{{ lease.leasing_until }}</td>
 
         </tr>
-        {% endfor %}
+        {%- endfor -%}
     </tbody>
 
 </table>
 
-{% endblock %}
+{%- endblock -%}

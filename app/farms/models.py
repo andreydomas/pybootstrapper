@@ -33,6 +33,9 @@ class BootImage(db.Model, Fixtured):
         self.version = version
         self.kernel = kernel
 
+    def __str__(self):
+        return '%s-%s' % (self.farm, self.version)
+
     @property
     def filename(self):
         return self.version

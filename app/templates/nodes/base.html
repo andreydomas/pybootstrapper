@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{%- extends "base.html" -%}
 
-{% set title = 'Nodes' %}
+{%- set title = 'Nodes' -%}
 
-{% block head %}
+{%- block head -%}
     {{ super() }}
     <script src="{{ url_for('static', filename='js/nodes.js')}}"></script>
-{% endblock %}
+{%- endblock -%}

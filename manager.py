@@ -4,7 +4,31 @@ from flask.ext.script import Manager
 from app import create_app
 from app.ext import db
 
-manager = Manager(create_app)
+def tornado_wrapper():
+    from tornado.wsgi import WSGIContainer
+    from tornado.httpserver import HTTPServer
+    from tornado.ioloop import IOLoop
+
+    from flask import request
+
+    app = create_app()
+
+    @app.after_request
+    def log_request(response):
+        app.logger.info('%s %s %s%s %s',
+                request.headers['User-Agent'],
+                request.method,
+                request.path,
+                ('?' + '&'.join( ['%s=%s' % (k,v) for k,v in request.args.iteritems() ])) if request.args else '',
+                response.status_code)
+        return response
+
+    http_server = HTTPServer(WSGIContainer(app))
+    http_server.listen(5000)
+    app.logger.debug('Running using Tornado HTTP server')
+    IOLoop.instance().start()
+
+manager = Manager(tornado_wrapper)
 
 @manager.command
 def sync_db():

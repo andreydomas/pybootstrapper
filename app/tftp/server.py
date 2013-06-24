@@ -4,36 +4,9 @@ import binascii
 import os
 import select
 import struct
-from sqlalchemy.exc import StatementError
-
-from ..flask_ctx import flask_context_push, flask_context_pop
-from ..nodes.models import Node
 
 IMAEGE_PREFIX = 'images/'
 KERNEL_PREFIX = 'kernels/'
-MAX_TFTP_BLKSIZE = 4096
-
-
-class PXELinuxConfig(object):
-    def __init__(self, farm):
-        self.image = farm.boot_images[0]
-
-        self.kernel = self.image.kernel
-        self.kernel_opts = self.image.kernel_opts or ''
-
-    def __str__(self):
-        return 'DEFAULT %(kernel)s\n' \
-               'APPEND %(append)s\n' % {
-
-                    'kernel': KERNEL_PREFIX + self.kernel.name,
-
-                    'append': 'initrd=%s %s' % (
-                                    '%s%d/%s' % (IMAEGE_PREFIX, self.image.farm_id, self.image.filename),
-                                    self.kernel_opts
-                                )
-
-                }
-
 
 class TIDException(Exception):
     def __init__(self, code):
@@ -45,30 +18,23 @@ class TID(object):
         message = message.split('\x00')
         self.filename = message[0][1:]
 
-        self.blksize = 512
-        for i, field in enumerate(message[1:]):
-            if field == 'blksize':
-                self.blksize = int(message[1:][i+1])
-
-        if self.blksize > MAX_TFTP_BLKSIZE:
-            self.blksize = MAX_TFTP_BLKSIZE
-
-        if self.filename == 'pxelinux.0':
-            self._data = self._regular_file(config.get('PXELINUX'))
-
-        elif self.filename.startswith(KERNEL_PREFIX):
-            kernel_name = config.get('KERNELS_STORE') + '/' + self.filename.split(KERNEL_PREFIX)[1]
-            self._data = self._regular_file(kernel_name)
-
-        elif self.filename.startswith(IMAEGE_PREFIX):
-            image_name = config.get('IMAGES_STORE') + '/' + self.filename.split(IMAEGE_PREFIX)[1]
-            self._data = self._regular_file(image_name)
-
-        elif self.filename.startswith('pxelinux.cfg/01-'):
-            self._data = self._pxelinux_cfg(self.filename.split('pxelinux.cfg/01-')[1])
+        if self.filename == 'gpxelinux.0':
+            self._data = self._regular_file(config.get('GPXELINUX'))
+            self.tsize = os.stat(config.get('GPXELINUX')).st_size
 
         else:
             raise TIDException(1)
+
+        self.blksize = config.get('TFTP_DEFAULT_BLKSIZE', 1456)
+
+        for i, field in enumerate(message[1:]):
+            if field == 'blksize':
+                client_blksize = int(message[1:][i+1])
+                if client_blksize:
+                    self.blksize = client_blksize
+
+        if self.blksize < 8 or self.blksize > 65464 or self.blksize*65535 < self.tsize:
+            raise TIDException(0)
 
 
     def _regular_file(self, fname):
@@ -80,23 +46,9 @@ class TID(object):
         except IOError:
             raise TIDException(2)
 
-    def _pxelinux_cfg(self, mac):
-        try:
-            node = Node.query.get(mac)
-        except StatementError:
-            return
-        except IndexError:
-            return
-
-        if node:
-            return PXELinuxConfig(node.pool.farm)
-
     def data(self, block):
-        if isinstance(self._data, PXELinuxConfig):
-            return str(self._data)[(block-1)*self.blksize:self.blksize*block]
-        else:
-            self._data.seek((block-1)*self.blksize)
-            return self._data.read(self.blksize)
+        self._data.seek((block-1)*self.blksize)
+        return self._data.read(self.blksize)
 
 
 class PyBootstapperTftpWorker(threading.Thread):
@@ -111,7 +63,6 @@ class PyBootstapperTftpWorker(threading.Thread):
         self.tids = {}
 
 
-    @flask_context_pop
     def _oack(self, options, address):
         self.app.logger.debug('OACK %s to %s', str(options), address[0])
 
@@ -124,7 +75,6 @@ class PyBootstapperTftpWorker(threading.Thread):
 
 
     def _rrq(self, message, address):
-        print message
         try:
             tid = TID(message, self.app.config)
         except TIDException, e:
@@ -138,10 +88,12 @@ class PyBootstapperTftpWorker(threading.Thread):
         if tid.blksize == 512:
             return self._data(1, address, tid.data)
 
-        return self._oack({'blksize': tid.blksize}, address)
+        return self._oack({
+                        'blksize': tid.blksize,
+                        'tsize': tid.tsize,
+                    }, address)
 
 
-    @flask_context_pop
     def _error(self, code, address):
 
         msg = {
@@ -155,13 +107,14 @@ class PyBootstapperTftpWorker(threading.Thread):
             7: 'No such user.'
         }[code]
 
+        self.app.logger.error('ERROR to %s: %s', address[0], msg)
+
         self.socket.sendto(
                     struct.pack('>H', 5) # Opcode(5 == Error)
                   + struct.pack('>H', code) # ErrorCode
                   + struct.pack('>%ss' % len(msg), msg) + '\x00' # ErrMsg
                   , address)
 
-    @flask_context_pop
     def _data(self, block, address, data):
         self.socket.sendto(
                   struct.pack('>H', 3) # Opcode(3 == DATA)
@@ -173,7 +126,7 @@ class PyBootstapperTftpWorker(threading.Thread):
     def _ack(self, message, address):
         _block = [ ( '\x00' if x == '' else x ) for x in message[1:] ]
         block=struct.unpack('>H', ''.join(_block))[0]
-        self.app.logger.debug('ACK from %s for block #%s', address[0], block)
+        #self.app.logger.debug('ACK from %s for block #%s', address[0], block)
 
         try:
             tid = self.tids[address]
@@ -184,7 +137,6 @@ class PyBootstapperTftpWorker(threading.Thread):
         self._data(next_block, address, tid.data)
 
 
-    @flask_context_push
     def handleTftpMessage(self, message, address):
         if message.startswith(struct.pack('>H', 1)): #RRQ(1)
             self._rrq(message[1:], address)

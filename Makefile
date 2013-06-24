@@ -5,7 +5,7 @@ PIP :=  ${ENV}/bin/pip
 NOSETESTS := ${ENV}/bin/nosetests
 
 web:
-	${PYTHON} manager.py runserver
+	${PYTHON} manager.py runserver -t 0.0.0.0
 
 dhcp:
 	${PYTHON} manager.py dhcp

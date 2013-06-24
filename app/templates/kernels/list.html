@@ -1,8 +1,8 @@
-{% extends "farms/base.html" %}
+{%- extends "farms/base.html" -%}
 
-{% set sidebar_kernels_list = True %}
+{%- set sidebar_kernels_list = True -%}
 
-{% block content %}
+{%- block content -%}
 
 <table class="table table-hover nodes-list">
     <caption>
@@ -16,7 +16,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for kernel in kernels %}
+        {%- for kernel in kernels -%}
         <tr>
             <td>
                 {{ kernel.created }}
@@ -25,13 +25,12 @@
                 {{ kernel.name }}
             </td>
             <td>
-                {% set images_count = kernel.boot_images | sum(attribute='images_count') %}
-                {% if images_count %}{{ images_count }}{% endif %}
+                {%- if kernel.boot_images -%}{{ kernel.boot_images | length }}{%- endif -%}
             </td>
         </tr>
-        {% endfor %}
+        {%- endfor -%}
     </tbody>
 
 </table>
 
-{% endblock %}
+{%- endblock -%}

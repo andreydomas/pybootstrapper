@@ -1,8 +1,8 @@
-{% extends "farms/base.html" %}
+{%- extends "farms/base.html" -%}
 
-{% set sidebar_farms_images = True %}
+{%- set sidebar_farms_images = True -%}
 
-{% block content %}
+{%- block content -%}
 
 <table class="table table-hover nodes-list">
     <caption>
@@ -15,7 +15,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for image in images %}
+        {%- for image in images -%}
         <tr>
             <td>
                 {{ image.version }}
@@ -24,9 +24,9 @@
                 {{ image.farm }}
             </td>
         </tr>
-        {% endfor %}
+        {%- endfor -%}
     </tbody>
 
 </table>
 
-{% endblock %}
+{%- endblock -%}

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    {% block head %}
+    {%- block head -%}
     <title>Pybootstrapper - {{ title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
@@ -10,7 +10,7 @@
     <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>
 
     <link href="{{ url_for('static', filename='css/style.css')}}" rel="stylesheet" media="screen">
-    {% endblock %}
+    {%- endblock -%}
   </head>
   <body>
     <div class="container-fluid">
@@ -20,9 +20,9 @@
         <div class="span3">
             <div class="well sidebar-nav sidebar-nav-fixed">
 
-            {%- macro sidebar_active(val) %}{% if val %}active{% endif %}{% endmacro -%}
+            {%- macro sidebar_active(val) -%}{%- if val -%}active{%- endif -%}{%- endmacro -%}
 
-            {% block sidebar %}
+            {%- block sidebar -%}
                 <ul class="nav nav-list">
 
                     <li class="nav-header">Kernels</li>
@@ -44,12 +44,12 @@
                     <li class="{{ sidebar_active(sidebar_leases_list) }}"><a href="{{ url_for('pools.leases') }}">List</a></li>
 
                </ul>
-            {% endblock %}
+            {%- endblock -%}
             </div>
         </div>
 
         <div class="span9">
-            {% block content %}{% endblock %}
+            {%- block content -%}{%- endblock -%}
         </div>
 
       </div>

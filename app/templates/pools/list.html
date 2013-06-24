@@ -1,8 +1,8 @@
-{% extends "pools/base.html" %}
+{%- extends "pools/base.html" -%}
 
-{% set sidebar_pools_list = True %}
+{%- set sidebar_pools_list = True -%}
 
-{% block content %}
+{%- block content -%}
 
 <table class="table table-hover pools-list">
     <caption>
@@ -17,10 +17,10 @@
         </tr>
     </thead>
     <tbody>
-        {% for pool in pools %}
+        {%- for pool in pools -%}
         <tr>
 
-            {% set pool_url_id = pool.subnet | replace("/", "_") %}
+            {%- set pool_url_id = pool.subnet | replace("/", "_") -%}
 
             <td>
                 <a href="{{ url_for('pools.pool', id=pool_url_id) }}">{{ pool.subnet }}</a>
@@ -31,17 +31,17 @@
             </td>
 
             <td>
-                {% if pool.nodes %}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{% endif %}
+                {%- if pool.nodes -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{%- endif -%}
             </td>
 
             <td>
-                {% if pool.leases %}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{% endif %}
+                {%- if pool.leases -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{%- endif -%}
             </td>
 
         </tr>
-        {% endfor %}
+        {%- endfor -%}
     </tbody>
 
 </table>
 
-{% endblock %}
+{%- endblock -%}

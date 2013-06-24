@@ -38,7 +38,7 @@ def images(name):
     if name:
         farm = models.Farm.query.filter(models.Farm.name==name).first_or_404()
         caption='Farm %s images' % farm.name
-        images = farm.images
+        images = farm.boot_images
     else:
         caption = None
         images = models.BootImage.query.all()

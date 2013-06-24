@@ -1,27 +1,27 @@
-{% extends "pools/base.html" %}
+{%- extends "pools/base.html" -%}
 
-{% set sidebar_pools_new = True %}
+{%- set sidebar_pools_new = True -%}
 
-{% macro ctrl_group(field) %}
-<div class="control-group{% if field.errors %} error{% endif %}">
+{%- macro ctrl_group(field) -%}
+<div class="control-group{%- if field.errors -%} error{%- endif -%}">
     <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
     <div class="controls">
         {{ field }}
-        {%- if field.errors %}
+        {%- if field.errors -%}
             <span class="help-inline">{{ field.errors[0] }}</span>
-        {% endif %}
+        {%- endif -%}
     </div>
 </div>
-{% endmacro %}
+{%- endmacro -%}
 
-{% block head %}
+{%- block head -%}
     {{ super() }}
     <script src="{{ url_for('static', filename='js/LDT/lib/Parser.js')}}"></script>
     <script src="{{ url_for('static', filename='js/LDT/lib/TextareaDecorator.js')}}"></script>
     <link href="{{ url_for('static', filename='js/LDT/lib/TextareaDecorator.css')}}" rel="stylesheet" media="screen">
-{% endblock %}
+{%- endblock -%}
 
-{% block content %}
+{%- block content -%}
 <form method="POST" class="form-horizontal">
     <fieldset>
         {{ form.hidden_tag() }}
@@ -43,4 +43,4 @@
 
     </fieldset>
 </form>
-{% endblock %}
+{%- endblock -%}

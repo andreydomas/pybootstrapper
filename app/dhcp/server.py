@@ -68,13 +68,14 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
 
 
     def icmp_test_alive(self, ip):
-        return Ping(str(ip), timeout=5000).do()
+        return Ping(str(ip), timeout=self.app.config.get('DHCP_TEST_TIMEOUT', 500)).do()
 
 
     @flask_context_push
     def HandleDhcpAll(self, packet):
         packet.str_mac = str(hwmac(packet.GetHardwareAddress()))
         packet.str_client_identifier = str().join( chr( val ) for val in packet.GetClientIdentifier() )
+        packet.str_user_class = str().join( chr( val ) for val in packet.GetOption('user_class') )
 
 
     @flask_context_pop
@@ -82,20 +83,22 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         self.app.logger.info('DISCOVER from %s', packet.str_mac)
         self.app.logger.debug(packet.str())
 
-        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
+        node = Node.query.get(packet.str_mac)
 
         if node is None:
-            if packet.str_client_identifier:
-                self.app.logger.info('Node with client identifier "%s" has not listen in database', packet.str_client_identifier)
-            else:
-                self.app.logger.info('Node %s has not listen in database', packet.str_mac)
+            self.app.logger.info('Node %s has not listen in database', packet.str_mac)
             return
 
         offer = DhcpPacket()
         offer.CreateDhcpOfferPacketFrom(packet)
         yiaddr = node.offer(self.icmp_test_alive)
 
-        for opt in node.pool.options:
+        if packet.str_user_class == 'gPXE':
+            options = node.gpxe_options
+        else:
+            options = node.pxe_options
+
+        for opt in options:
             offer.SetOption(opt.option, opt.binary)
 
         offer.SetOption("yiaddr", yiaddr.words)
@@ -119,38 +122,44 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         self.app.logger.info('REQUEST from %s', packet.str_mac)
         self.app.logger.debug(packet.str())
 
-        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
-
-        if packet.GetOption('server_identifier'):
-            server_ip = ipv4(self._list2long(packet.GetOption('server_identifier')))
-            if server_ip != self.listen_on_ip:
-                self.app.logger.info('Node %s has accept offer from another server', packet.str_mac)
-                node.cleanup_offers()
-                return
+        node = Node.query.get(packet.str_mac)
 
         renew_ip = self._list2long(packet.GetOption("ciaddr"))
         new_ip = self._list2long(packet.GetOption('request_ip_address'))
 
-        request_ip_address = renew_ip or new_ip
+        server_id = ipv4(self._list2long(packet.GetOption('server_identifier')))
 
-        if not request_ip_address:
-            self.app.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', packet.str_mac)
-            self.nack(packet)
+        lease = None
+
+        if server_id.int() == 0:  # INIT-REBOOT
+            lease = node.lease(new_ip)
+
+        elif server_id == self.listen_on_ip:  # SELECT
+            request_ip_address = renew_ip or new_ip
+            if not request_ip_address:
+                self.app.logger.error('Got DHCP REQUEST from %s with empty request_ip_address and ciaddr', packet.str_mac)
+            else:
+                lease = node.lease(request_ip_address, existen=renew_ip)
+
+        else:
+            self.app.logger.info('Node %s has accept offer from another server', packet.str_mac)
+            node.cleanup_offers()
             return
 
-
-        lease = node.lease(request_ip_address, existen=renew_ip)
-
         if not lease:
-            self.app.logger.info('Address %s requested by %s is not found in offers store', str(ipv4(request_ip_address)), packet.str_mac)
             self.nack(packet)
             return
 
         ack = DhcpPacket()
         ack.CreateDhcpAckPacketFrom(packet)
 
-        for opt in node.pool.options:
-            ack.SetOption(opt.option, list(opt.binary))
+        if packet.str_user_class in ['gPXE', 'iPXE']:
+            options = node.gpxe_options
+        else:
+            options = node.pxe_options
+
+        for opt in options:
+            ack.SetOption(opt.option, opt.binary)
 
         ack.SetOption("yiaddr", lease.yiaddr.words)
         ack.SetOption("siaddr", self.listen_on_ip.list())
@@ -162,7 +171,6 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
             self.app.logger.error('Could not send DHCP ACK to %s', packet.str_mac)
 
 
-
     @flask_context_pop
     def HandleDhcpDecline(self, packet):
         self.app.logger.warning('DECLINE from %s for ip %s', packet.str_mac, packet.getOption('ciaddr'))
@@ -170,7 +178,7 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
 
         decline_ip = self._list2long(packet.GetOption('request_ip_address'))
 
-        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
+        node = Node.query.get(packet.str_mac)
         if node:
             node.decline(decline_ip)
 
@@ -180,7 +188,7 @@ class PyBootstapperDhcpWorker(DhcpServer, threading.Thread):
         self.app.logger.info('RELEASE from %s', packet.str_mac)
         self.app.logger.debug(packet.str())
 
-        node = Node.query.get(packet.str_client_identifier or packet.str_mac)
+        node = Node.query.get(packet.str_mac)
         node.release()
 
 

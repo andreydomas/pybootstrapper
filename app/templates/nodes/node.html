@@ -1,20 +1,20 @@
-{% extends "nodes/base.html" %}
+{%- extends "nodes/base.html" -%}
 
-{% set sidebar_nodes_new = True %}
+{%- set sidebar_nodes_new = True -%}
 
-{% macro ctrl_group(field) %}
-<div class="control-group{% if field.errors %} error{% endif %}">
+{%- macro ctrl_group(field) -%}
+<div class="control-group{%- if field.errors -%} error{%- endif -%}">
     <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
     <div class="controls">
         {{ field }}
-        {%- if field.errors %}
+        {%- if field.errors -%}
             <span class="help-inline">{{ field.errors[0] }}</span>
-        {% endif %}
+        {%- endif -%}
     </div>
 </div>
-{% endmacro %}
+{%- endmacro -%}
 
-{% block content %}
+{%- block content -%}
 
 <form method="POST" class="form-horizontal">
     <fieldset>
@@ -26,6 +26,11 @@
            {{ ctrl_group(form.static_ip) }}
            {{ ctrl_group(form.pool) }}
 
+           {%- if form.boot_image -%}
+            {{ ctrl_group(form.boot_image) }}
+           {%- endif -%}
+
+
        <div class="control-group">
            <div class="controls">
                <button type="submit" class="btn btn-primary">Submit</button>
@@ -35,4 +40,4 @@
     </fieldset>
 </form>
 
-{% endblock %}
+{%- endblock -%}

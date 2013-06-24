@@ -2,10 +2,10 @@ import re
 from flask.ext.wtf import Form, TextField, DataRequired, FileField, QuerySelectField
 
 from ..kernels.models import Kernel
-import models
 
 
 class FarmForm(Form):
+
     name = TextField('Name', validators=[DataRequired(), ])
 
     def validate_name(form, field):
