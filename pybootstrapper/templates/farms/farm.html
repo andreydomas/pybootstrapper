@@ -16,22 +16,25 @@
 
 {%- block content -%}
 
-<form method="POST" class="form-horizontal">
-    <fieldset>
-        {{ form.hidden_tag() }}
+<div class="row-fluid">
+    <div class="span12">
 
-        <legend>{{ farm.name | default('New farm') }}</legend>
+    <form method="POST" class="form-horizontal">
+        <fieldset>
+            {{ form.hidden_tag() }}
 
-           {{ ctrl_group(form.name) }}
+            <legend>{{ farm.name | default('New farm') }}</legend>
 
-       <div class="control-group">
-           <div class="controls">
-               <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-       </div>
+               {{ ctrl_group(form.name) }}
 
-    </fieldset>
-</form>
+           <div class="control-group">
+               <div class="controls">
+                   <button type="submit" class="btn btn-primary">Submit</button>
+               </div>
+           </div>
+
+        </fieldset>
+    </form>
 
 {%- if farm -%}
     <div>
@@ -63,5 +66,8 @@
 
     </div>
 {%- endif -%}
+
+    </div>
+</div>
 
 {%- endblock -%}

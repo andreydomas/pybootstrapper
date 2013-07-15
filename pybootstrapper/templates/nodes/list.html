@@ -4,49 +4,58 @@
 
 {%- block content -%}
 
-<table class="table table-hover nodes-list">
-    <caption>
-        <h2>{{ caption | default('Nodes') }}</h2>
-    </caption>
-    <thead>
-        <tr>
-            <th>Node ID</th>
-            <th>Hostname</th>
-            <th>Farm</th>
-            <th>Image</th>
-            <th>Pool</th>
-            <th>Leasing created</th>
-            <th>Leasing until</th>
-        </tr>
-    </thead>
-    <tbody>
-        {%- for node in nodes -%}
-        <tr>
+<div class="row-fluid">
+    <div class="span12">
 
-            <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
+    <table class="table table-hover nodes-list">
 
-            <td>{{ node.hostname }}</td>
+        <caption>
+            <h2>{{ caption | default('Nodes') }}</h2>
+        </caption>
 
-            <td>{{ node.pool.farm }}</td/>
+        <thead>
+            <tr>
+                <th>Node ID</th>
+                <th>Hostname</th>
+                <th>Farm</th>
+                <th>Image</th>
+                <th>Pool</th>
+                <th>Leasing created</th>
+                <th>Leasing until</th>
+            </tr>
+        </thead>
 
-            <td>{%- if node.boot_image -%}{{ node.boot_image }}{%- endif -%}</td>
+        <tbody>
+            {%- for node in nodes -%}
+            <tr>
 
-            <td>{{ node.pool }}</td>
+                <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
 
-            {%- if node.leases -%}
-                {%- set lease = node.leases[0] -%}
-            {%- else -%}
-                {%- set lease = dict() -%}
-            {%- endif-%}
+                <td>{{ node.hostname }}</td>
 
-            <td>{{ lease.created }}</td>
+                <td>{{ node.pool.farm }}</td/>
 
-            <td>{{ lease.leasing_until }}</td>
+                <td>{%- if node.boot_image -%}{{ node.boot_image }}{%- endif -%}</td>
 
-        </tr>
-        {%- endfor -%}
-    </tbody>
+                <td>{{ node.pool }}</td>
 
-</table>
+                {%- if node.leases -%}
+                    {%- set lease = node.leases[0] -%}
+                {%- else -%}
+                    {%- set lease = dict() -%}
+                {%- endif-%}
+
+                <td>{{ lease.created }}</td>
+
+                <td>{{ lease.leasing_until }}</td>
+
+            </tr>
+            {%- endfor -%}
+        </tbody>
+
+    </table>
+
+    </div>
+</div>
 
 {%- endblock -%}

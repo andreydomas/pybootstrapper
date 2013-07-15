@@ -11,9 +11,17 @@ import forms
 
 mod = Blueprint('farms', __name__, url_prefix='/farms')
 
+
+def gexf(farms):
+    return render_template("farms/gexf.xml", farms=farms)
+
 @mod.route('/', methods=['GET'])
 def list():
     farms = models.Farm.query.all()
+
+    if 'gexf' in request.args:
+        return gexf(farms)
+
     return render_template("farms/list.html", farms=farms)
 
 

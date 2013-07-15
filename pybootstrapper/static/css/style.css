@@ -21,3 +21,13 @@ textarea#options {
     width: 500px;
     height: 300px;
 }
+
+#farm_graph {
+    height: 500px;
+    width: 100%;
+    position: relative;
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    background: #222;
+}

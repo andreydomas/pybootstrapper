@@ -12,4 +12,22 @@ $(function() {
     $('select.url_generator').on('change', generateImageUploadURL);
     $('input.url_generator').on('keyup', generateImageUploadURL);
 
+
+    $('#farm_graph').each(function() {
+
+        var sigInst = sigma.init(this).drawingProperties({
+                                            defaultLabelColor: '#fff',
+                                       })
+
+                                      .graphProperties({
+                                            minNodeSize: 0.5,
+                                            maxNodeSize: 5,
+                                       });
+
+        sigInst.parseGexf('/farms?gexf=');
+
+        sigInst.draw();
+
+    });
+
 });

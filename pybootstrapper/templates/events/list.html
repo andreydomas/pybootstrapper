@@ -3,34 +3,42 @@
 {%- set sidebar_events_list = True -%}
 
 {%- block content -%}
+<div class="row-fluid">
+    <div class="span12">
 
-<table class="table table-hover nodes-list">
-    <caption>
-        <h2>{{ caption | default('Events') }}</h2>
-    </caption>
-    <thead>
-        <tr>
-            <th>Created</th>
-            <th>Message</th>
-        </tr>
-    </thead>
-    <tbody>
-        {%- for event in events -%}
-        <tr class="{{ event.level }}">
-            <td>
-                <small>
-                    {{ event.created }}
-                </small>
-            </td>
-            <td>
-                <small>
-                    {{ event.message }}
-                </small>
-            </td>
-        </tr>
-        {%- endfor -%}
-    </tbody>
+    <table class="table table-hover nodes-list">
 
-</table>
+        <caption>
+            <h2>{{ caption | default('Events') }}</h2>
+        </caption>
+
+        <thead>
+            <tr>
+                <th>Created</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {%- for event in events -%}
+            <tr class="{{ event.level }}">
+                <td>
+                    <small>
+                        {{ event.created }}
+                    </small>
+                </td>
+                <td>
+                    <small>
+                        {{ event.message }}
+                    </small>
+                </td>
+            </tr>
+            {%- endfor -%}
+        </tbody>
+
+    </table>
+
+    </div>
+</div>
 
 {%- endblock -%}

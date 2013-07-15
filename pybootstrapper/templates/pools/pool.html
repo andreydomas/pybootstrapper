@@ -22,27 +22,34 @@
 {%- endblock -%}
 
 {%- block content -%}
-<form method="POST" class="form-horizontal">
-    <fieldset>
-        {{ form.hidden_tag() }}
 
-        <legend>{{ pool.subnet | default('New pool') }}</legend>
+<div class="row-fluid">
+    <div class="span12">
 
-        {{ ctrl_group(form.name) }}
+    <form method="POST" class="form-horizontal">
+        <fieldset>
+            {{ form.hidden_tag() }}
 
-        {{ ctrl_group(form.subnet) }}
+            <legend>{{ pool.subnet | default('New pool') }}</legend>
 
-        {{ ctrl_group(form.farm) }}
+            {{ ctrl_group(form.name) }}
 
-        {{ ctrl_group(form.options) }}
-        <noscript>Please enable JavaScript to allow syntax highlighting.</noscript>
+            {{ ctrl_group(form.subnet) }}
 
-       <div class="control-group">
-           <div class="controls">
-               <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-       </div>
+            {{ ctrl_group(form.farm) }}
 
-    </fieldset>
-</form>
+            {{ ctrl_group(form.options) }}
+            <noscript>Please enable JavaScript to allow syntax highlighting.</noscript>
+
+           <div class="control-group">
+               <div class="controls">
+                   <button type="submit" class="btn btn-primary">Submit</button>
+               </div>
+           </div>
+
+        </fieldset>
+    </form>
+
+    </div>
+</div>
 {%- endblock -%}

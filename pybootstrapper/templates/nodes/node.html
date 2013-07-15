@@ -16,27 +16,33 @@
 
 {%- block content -%}
 
-<form method="POST" class="form-horizontal">
-    <fieldset>
-        {{ form.hidden_tag() }}
+<div class="row-fluid">
+    <div class="span12">
 
-        <legend>{{ node.id | default('New node')}}</legend>
+    <form method="POST" class="form-horizontal">
+        <fieldset>
+            {{ form.hidden_tag() }}
 
-           {{ ctrl_group(form.id) }}
-           {{ ctrl_group(form.hostname) }}
-           {{ ctrl_group(form.static_ip) }}
-           {{ ctrl_group(form.pool) }}
+            <legend>{{ node.id | default('New node')}}</legend>
 
-           {{ ctrl_group(form.boot_image) }}
+               {{ ctrl_group(form.id) }}
+               {{ ctrl_group(form.hostname) }}
+               {{ ctrl_group(form.static_ip) }}
+               {{ ctrl_group(form.pool) }}
+
+               {{ ctrl_group(form.boot_image) }}
 
 
-       <div class="control-group">
-           <div class="controls">
-               <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-       </div>
+           <div class="control-group">
+               <div class="controls">
+                   <button type="submit" class="btn btn-primary">Submit</button>
+               </div>
+           </div>
 
-    </fieldset>
-</form>
+        </fieldset>
+    </form>
+
+    </div>
+</div>
 
 {%- endblock -%}

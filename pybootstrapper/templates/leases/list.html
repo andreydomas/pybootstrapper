@@ -3,35 +3,44 @@
 {%- set sidebar_leases_list = True -%}
 
 {%- block content -%}
-<table class="table table-hover leases-list">
-    <caption>
-        <h2>{{ caption | default('Leases') }}</h2>
-    </caption>
-    <thead>
-        <tr>
-            <th>Node</th>
-            <th>Address</th>
-            <th>Created</th>
-            <th>Until</th>
-        </tr>
-    </thead>
-    <tbody>
-        {%- for lease in leases -%}
-        <tr>
 
-            {#% set pool_url_id = pool.subnet | replace("/", "_") %#}
+<div class="row-fluid">
+    <div class="span12">
 
-            <td><a href="{{ url_for('nodes.node', id=lease.node.id) }}">{{ lease.node.id }}</a></td>
+    <table class="table table-hover leases-list">
 
-            <td>{{ lease.yiaddr }}</td>
+        <caption>
+            <h2>{{ caption | default('Leases') }}</h2>
+        </caption>
 
-            <td>{{ lease.created }}</td>
+        <thead>
+            <tr>
+                <th>Node</th>
+                <th>Address</th>
+                <th>Created</th>
+                <th>Until</th>
+            </tr>
+        </thead>
 
-            <td>{{ lease.leasing_until }}</td>
 
-        </tr>
-        {%- endfor -%}
-    </tbody>
+        <tbody>
+            {%- for lease in leases -%}
+            <tr>
 
-</table>
+                <td><a href="{{ url_for('nodes.node', id=lease.node.id) }}">{{ lease.node.id }}</a></td>
+
+                <td>{{ lease.yiaddr }}</td>
+
+                <td>{{ lease.created }}</td>
+
+                <td>{{ lease.leasing_until }}</td>
+
+            </tr>
+            {%- endfor -%}
+        </tbody>
+
+    </table>
+
+    </div>
+</div>
 {%- endblock -%}

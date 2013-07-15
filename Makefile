@@ -1,4 +1,4 @@
-ENV := /var/tmp/pybootstrapper
+ENV := ./env
 PYTHON := ${ENV}/bin/python
 IPYTHON := ${ENV}/bin/ipython
 PIP :=  ${ENV}/bin/pip
@@ -18,14 +18,15 @@ shell:
 
 env:
 	virtualenv --system-site-packages ${ENV}
-	${PIP} install -U Flask \
+	USE_SETUPTOOLS=1 ${PIP} install -U \
+			Flask \
 			Flask-SQLAlchemy \
 			Flask-Script \
 			Flask-WTF \
 			Flask-Uploads \
 			netaddr \
 			pyping \
-			tornado>=3.1
+			tornado\>=3.1
 
 db: drop_db
 	${PYTHON} manager.py sync_db
@@ -42,4 +43,4 @@ tests:
 dist:
 	${PYTHON} setup.py sdist --formats=gztar
 
-.PHONY: fixtures tests dist
+.PHONY: fixtures tests dist env

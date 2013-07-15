@@ -4,46 +4,55 @@
 
 {%- block content -%}
 
-<a href="{{ url_for('pools.pool') }}" class="btn" id="new_pool">New</a>
+<div class="row-fluid">
+    <div class="span12">
 
-<table class="table table-hover pools-list">
-    <caption>
-        <h2>{{ caption | default('Pools') }}</h2>
-    </caption>
-    <thead>
-        <tr>
-            <th>Pool</th>
-            <th>Farm</th>
-            <th>Nodes</th>
-            <th>Leases</th>
-        </tr>
-    </thead>
-    <tbody>
-        {%- for pool in pools -%}
-        <tr>
+    <a href="{{ url_for('pools.pool') }}" class="btn" id="new_pool">New</a>
 
-            {%- set pool_url_id = pool.name or pool.subnet | replace("/", "_") -%}
+    <table class="table table-hover pools-list">
 
-            <td>
-                <a href="{{ url_for('pools.pool', id=pool_url_id) }}">{{ pool }}</a>
-            </td>
+        <caption>
+            <h2>{{ caption | default('Pools') }}</h2>
+        </caption>
 
-            <td>
-                <a href="{{ url_for('farms.farm', name=pool.farm.name) }}">{{ pool.farm }}</a>
-            </td>
+        <thead>
+            <tr>
+                <th>Pool</th>
+                <th>Farm</th>
+                <th>Nodes</th>
+                <th>Leases</th>
+            </tr>
+        </thead>
 
-            <td>
-                {%- if pool.nodes -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{%- endif -%}
-            </td>
+        <tbody>
+            {%- for pool in pools -%}
+            <tr>
 
-            <td>
-                {%- if pool.leases -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{%- endif -%}
-            </td>
+                {%- set pool_url_id = pool.name or pool.subnet | replace("/", "_") -%}
 
-        </tr>
-        {%- endfor -%}
-    </tbody>
+                <td>
+                    <a href="{{ url_for('pools.pool', id=pool_url_id) }}">{{ pool }}</a>
+                </td>
 
-</table>
+                <td>
+                    <a href="{{ url_for('farms.farm', name=pool.farm.name) }}">{{ pool.farm }}</a>
+                </td>
+
+                <td>
+                    {%- if pool.nodes -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{%- endif -%}
+                </td>
+
+                <td>
+                    {%- if pool.leases -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{%- endif -%}
+                </td>
+
+            </tr>
+            {%- endfor -%}
+        </tbody>
+
+    </table>
+
+    </div>
+</div>
 
 {%- endblock -%}

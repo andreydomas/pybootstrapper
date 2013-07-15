@@ -15,21 +15,28 @@
 {%- endmacro -%}
 
 {%- block content -%}
-<form method="POST" class="form-horizontal" enctype="multipart/form-data">
-    <fieldset>
-        {{ form.hidden_tag() }}
 
-        <legend>New kernel</legend>
+<div class="row-fluid">
+    <div class="span12">
 
-        {{ ctrl_group(form.name) }}
-        {{ ctrl_group(form.kernel) }}
+    <form method="POST" class="form-horizontal" enctype="multipart/form-data">
+        <fieldset>
+            {{ form.hidden_tag() }}
 
-       <div class="control-group">
-           <div class="controls">
-               <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-       </div>
+            <legend>New kernel</legend>
 
-    </fieldset>
-</form>
+            {{ ctrl_group(form.name) }}
+            {{ ctrl_group(form.kernel) }}
+
+           <div class="control-group">
+               <div class="controls">
+                   <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+           </div>
+
+        </fieldset>
+    </form>
+
+    </div>
+</div>
 {%- endblock -%}
