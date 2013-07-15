@@ -1,0 +1,47 @@
+#!/bin/env python
+
+import sys, getopt
+from pybootstrapper import create_app
+
+settings_ini = None
+
+def http(app):
+    app.run(threaded=True,
+            use_reloader=False,
+            host=app.config.get('HTTP_LISTEN', '0.0.0.0')
+        )
+
+
+def dhcp(app):
+    from pybootstrapper.dhcp.server import init
+    init(app)
+
+
+def tftp(app):
+    from pybootstrapper.tftp.server import init
+    init(app)
+
+
+if len(sys.argv) == 1:
+    print 'pybootstrapper_daemons <settings.ini> <daemon>'
+    sys.exit()
+
+if len(sys.argv) == 2:
+    print 'daemon file is not specified'
+    sys.exit(2)
+
+app = create_app(sys.argv[1])
+
+daemons = {'http': http,
+           'dhcp': dhcp,
+           'tftp': tftp
+           }
+
+try:
+    daemons[sys.argv[2]](app)
+except IndexError:
+    print 'Unknown daemon %s' % sys.argv[2]
+    sys.exit(2)
+
+
+__all__ = ['http', 'dhcp', 'tftp', 'app']

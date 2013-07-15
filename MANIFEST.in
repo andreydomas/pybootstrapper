@@ -1,0 +1,2 @@
+graft pybootstrapper/static
+graft pybootstrapper/templates

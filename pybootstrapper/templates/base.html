@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {%- block head -%}
+    <title>Pybootstrapper - {{ title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.1/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>
+
+    <link href="{{ url_for('static', filename='css/style.css')}}" rel="stylesheet" media="screen">
+    {%- endblock -%}
+  </head>
+  <body>
+
+      {%- macro sidebar_active(val) -%}{%- if val -%}active{%- endif -%}{%- endmacro -%}
+
+      <div class="navbar">
+          <div class="navbar-inner">
+              <a class="brand" href="/">Pybootstrapper</a>
+              <ul class="nav">
+
+                <li class="{{ sidebar_active(sidebar_events_list) }}"><a href="{{ url_for('events.list') }}">Events</a></li>
+
+                <li class="{{ sidebar_active(sidebar_kernels_list) }}"><a href="{{ url_for('kernels.list') }}">Kernels</a></li>
+
+                <li class="{{ sidebar_active(sidebar_farms_list) }}"><a href="{{ url_for('farms.list') }}">Farms</a></li>
+
+                <li class="{{ sidebar_active(sidebar_farms_images) }}"><a href="{{ url_for('farms.images') }}">Images</a></li>
+
+                <li class="{{ sidebar_active(sidebar_pools_list) }}"><a href="{{ url_for('pools.list') }}">Pools</a></li>
+
+                <li class="{{ sidebar_active(sidebar_nodes_list) }}"><a href="{{ url_for('nodes.list') }}">Nodes</a></li>
+
+                <li class="{{ sidebar_active(sidebar_leases_list) }}"><a href="{{ url_for('pools.leases') }}">Leases</a></li>
+
+             </ul>
+         </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="span12">
+            {%- block content -%}{%- endblock -%}
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

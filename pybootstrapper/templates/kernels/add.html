@@ -1,0 +1,35 @@
+{%- extends "kernels/base.html" -%}
+
+{%- set sidebar_kernels_add = True -%}
+
+{%- macro ctrl_group(field) -%}
+<div class="control-group{%- if field.errors -%} error{%- endif -%}">
+    <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
+    <div class="controls">
+        {{ field }}
+        {%- if field.errors -%}
+            <span class="help-inline">{{ field.errors[0] }}</span>
+        {%- endif -%}
+    </div>
+</div>
+{%- endmacro -%}
+
+{%- block content -%}
+<form method="POST" class="form-horizontal" enctype="multipart/form-data">
+    <fieldset>
+        {{ form.hidden_tag() }}
+
+        <legend>New kernel</legend>
+
+        {{ ctrl_group(form.name) }}
+        {{ ctrl_group(form.kernel) }}
+
+       <div class="control-group">
+           <div class="controls">
+               <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+       </div>
+
+    </fieldset>
+</form>
+{%- endblock -%}

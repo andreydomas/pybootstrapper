@@ -1,0 +1,42 @@
+{%- extends "nodes/base.html" -%}
+
+{%- set sidebar_nodes_new = True -%}
+
+{%- macro ctrl_group(field) -%}
+<div class="control-group{%- if field.errors -%} error{%- endif -%}">
+    <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
+    <div class="controls">
+        {{ field }}
+        {%- if field.errors -%}
+            <span class="help-inline">{{ field.errors[0] }}</span>
+        {%- endif -%}
+    </div>
+</div>
+{%- endmacro -%}
+
+{%- block content -%}
+
+<form method="POST" class="form-horizontal">
+    <fieldset>
+        {{ form.hidden_tag() }}
+
+        <legend>{{ node.id | default('New node')}}</legend>
+
+           {{ ctrl_group(form.id) }}
+           {{ ctrl_group(form.hostname) }}
+           {{ ctrl_group(form.static_ip) }}
+           {{ ctrl_group(form.pool) }}
+
+           {{ ctrl_group(form.boot_image) }}
+
+
+       <div class="control-group">
+           <div class="controls">
+               <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+       </div>
+
+    </fieldset>
+</form>
+
+{%- endblock -%}

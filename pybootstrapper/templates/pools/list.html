@@ -1,0 +1,49 @@
+{%- extends "pools/base.html" -%}
+
+{%- set sidebar_pools_list = True -%}
+
+{%- block content -%}
+
+<a href="{{ url_for('pools.pool') }}" class="btn" id="new_pool">New</a>
+
+<table class="table table-hover pools-list">
+    <caption>
+        <h2>{{ caption | default('Pools') }}</h2>
+    </caption>
+    <thead>
+        <tr>
+            <th>Pool</th>
+            <th>Farm</th>
+            <th>Nodes</th>
+            <th>Leases</th>
+        </tr>
+    </thead>
+    <tbody>
+        {%- for pool in pools -%}
+        <tr>
+
+            {%- set pool_url_id = pool.name or pool.subnet | replace("/", "_") -%}
+
+            <td>
+                <a href="{{ url_for('pools.pool', id=pool_url_id) }}">{{ pool }}</a>
+            </td>
+
+            <td>
+                <a href="{{ url_for('farms.farm', name=pool.farm.name) }}">{{ pool.farm }}</a>
+            </td>
+
+            <td>
+                {%- if pool.nodes -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{%- endif -%}
+            </td>
+
+            <td>
+                {%- if pool.leases -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{%- endif -%}
+            </td>
+
+        </tr>
+        {%- endfor -%}
+    </tbody>
+
+</table>
+
+{%- endblock -%}

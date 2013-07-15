@@ -10,11 +10,11 @@ pool_subnet: '192.168.56.0/24'
 ---
 created: 2013-01-08 12:15:20
 id: '33:33:33:33:33:33'
-pool_subnet: '192.168.1.0/25'
+pool_subnet: '192.168.0.0/25'
 hostname: 'node3'
 ---
 created: 2013-02-01 23:55:48
 id: '44:44:44:44:44:44'
 hostname: 'node4'
 static_ip: '192.168.0.4'
-pool_subnet: '192.168.0.0/24'
+pool_subnet: '192.168.0.0/25'

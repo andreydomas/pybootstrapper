@@ -1,0 +1,67 @@
+{%- extends "farms/base.html" -%}
+
+{%- set sidebar_farms_new = not farm.name -%}
+
+{%- macro ctrl_group(field) -%}
+<div class="control-group{%- if field.errors -%} error{%- endif -%}">
+    <label class="control-label" for="{{ field.id }}">{{ field.label.text }}</label>
+    <div class="controls">
+        {{ field }}
+        {%- if field.errors -%}
+            <span class="help-inline">{{ field.errors[0] }}</span>
+        {%- endif -%}
+    </div>
+</div>
+{%- endmacro -%}
+
+{%- block content -%}
+
+<form method="POST" class="form-horizontal">
+    <fieldset>
+        {{ form.hidden_tag() }}
+
+        <legend>{{ farm.name | default('New farm') }}</legend>
+
+           {{ ctrl_group(form.name) }}
+
+       <div class="control-group">
+           <div class="controls">
+               <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+       </div>
+
+    </fieldset>
+</form>
+
+{%- if farm -%}
+    <div>
+        <b>Image upload URL generator</b></br>
+
+        {%- macro select_kernels(kernels) %}
+            <select class="url_generator kernel">
+                {%- if kernels -%}
+                    {%- for kernel in kernels -%}
+                    <option>{{ kernel }}</option>
+                    {%- endfor -%}
+                {%- endif -%}
+            </select>
+        {%- endmacro -%}
+
+        {%- macro select_version() -%}
+            <input type="text" placeholder="version" class="url_generator version">
+        {%- endmacro -%}
+
+        {%- set kernel_var = '__KERNEL__' -%}
+        {%- set version_var = '__VERSION__' -%}
+
+        {%- set url_template = url_for('.new_image', name=farm.name, kernel_name=kernel_var, version=version_var, _external=True) -%}
+
+        {{ url_template | replace(kernel_var, select_kernels(kernels)) | replace(version_var, select_version()) }}
+
+        <span id="url_generator_zygote" class="hide">curl -X PUT -F image=@<filename> {{ url_template }}</span>
+        <p class="text-info" id="url_generator_target"></p>
+
+    </div>
+{%- endif -%}
+
+{%- endblock -%}
