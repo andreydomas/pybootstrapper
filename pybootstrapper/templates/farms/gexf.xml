@@ -4,32 +4,48 @@
       xmlns:viz="http://www.gexf.net/1.1draft/viz"
       xsi:schemaLocation="http://www.gexf.net/1.2draft http://www.gexf.net/1.2draft/gexf.xsd" version="1.2">
     <graph mode="static" defaultedgetype="directed">
+
+        <attributes class="node">
+            <attribute id="url" title="url" type="string"/>
+        </attributes>
+
         <nodes>
 
             {%- set edges_count = [] -%}
 
-            {% set farm_color_offset = 200 / (farms | length) %}
+            {% set farm_color_offset = 128 / (farms | length) %}
             {%- for farm in farms %}
             <node id="farm-{{ farm.id }}" label="{{ farm }}">
                 <viz:shape value="disc"/>
-                <viz:color b="{{ 50 + farm_color_offset * loop.index0 }}" g="{{ 80 + farm_color_offset * loop.index0 }}" r="220"/>
+                {%- set farm_color = farm_color_offset * loop.index -%}
+                <viz:color b="{{ 50 + farm_color }}" g="{{ 256 - farm_color }}" r="{{ 256 - farm_color }}"/>
                 <viz:size value="15"/>
+
                 {%- set farm_x = loop.index0 * 2 * (40 - (farms|length)) -%}
                 {%- set farm_loop = loop.index0 -%}
-
                 <viz:position x="{{ farm_x }}" y="40" z="0.0" />
+
+                <attvalues>
+                    <attvalue for="url" value="{{ url_for('farms.farm', name=farm.name) }}"/>
+                </attvalues>
 
                 {%- set pool_minus = 1 -%}
                 {%- set pool_plus = 1 -%}
 
-                {% set pool_color_offset = 200 / ((farm.pools | length) or 1) %}
+                {% set pool_color_offset = (farm_color_offset + farm_color) / ((farm.pools | length) or 1) %}
+
                 {%- for pool in farm.pools %}
                 <node id="pool-{{ pool.subnet }}" label="{{ pool }}">
                     <viz:shape value="square"/>
-                    <viz:color b="{{ 50 + pool_color_offset * loop.index0 }}" g="{{ 80 + pool_color_offset * loop.index0 }}" r="120"/>
+                    <viz:color b="{{ 50 + pool_color_offset * loop.index }}" g="{{ 256 - pool_color_offset * loop.index }}" r="{{ 256 - pool_color_offset * loop.index }}"/>
                     <viz:size value="10"/>
 
-                    {%- if edges_count.append(1) -%}{%- endif -%}
+                    <attvalues>
+                        {%- set subnet = pool.subnet|replace("/","_") %}
+                        <attvalue for="url" value="{{ url_for('pools.pool', id=subnet) }}"/>
+                    </attvalues>
+
+                    {% if edges_count.append(1) -%}{%- endif -%}
 
                     {% if loop.first %}
                         {%- set pool_x = farm_x -%}
@@ -64,6 +80,11 @@
                             <viz:shape value="triangle"/>
                             <viz:size value="5"/>
                             <viz:position x="{{ node_x }}" y="100" z="0.0" />
+
+                            <attvalues>
+                                <attvalue for="url" value="{{ url_for('nodes.node', id=node.id) }}"/>
+                            </attvalues>
+
                         </node>
 
                     {%- endfor %}

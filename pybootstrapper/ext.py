@@ -5,6 +5,7 @@ __all__ = ['db']
 
 db = SQLAlchemy()
 
+UploadSet.image_path = lambda self, dirname, filename: self.path('%s/%s' % (dirname, filename))
 
 iscsi_images_store = UploadSet('iscsiImage', extensions=ALL,
                 default_dest=lambda app: app.config.get('ISCSI_IMAGES_STORE', '/dev/null')

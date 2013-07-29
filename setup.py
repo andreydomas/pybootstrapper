@@ -12,6 +12,7 @@ setup(
             'setuptools',
             'tornado>=3.1',
             'Flask>=0.10.1',
+            'blinker',
             'sqlalchemy>=0.8',
             'Flask-SQLAlchemy>=0.16',
             'Flask-WTF>=0.8.3',

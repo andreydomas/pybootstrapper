@@ -26,7 +26,7 @@
         </thead>
 
         <tbody>
-            {%- for node in nodes -%}
+            {%- for node in nodes.items -%}
             <tr>
 
                 <td><a href="{{ url_for('nodes.node', id=node.id) }}">{{ node.id }}</a></td>
@@ -39,8 +39,8 @@
 
                 <td>{{ node.pool }}</td>
 
-                {%- if node.leases -%}
-                    {%- set lease = node.leases[0] -%}
+                {%- if node.leases_count -%}
+                    {%- set lease = node.leases.all()[0] -%}
                 {%- else -%}
                     {%- set lease = dict() -%}
                 {%- endif-%}
@@ -54,6 +54,15 @@
         </tbody>
 
     </table>
+
+    {%- from "pagination.html" import paginate -%}
+    {%- if farm -%}
+        {{ paginate(nodes, view='farms.nodes', view_args=dict(name=farm.name)) }}
+    {%- elif pool -%}
+        {{ paginate(nodes, view='pools.nodes', view_args=dict(id=pool.name or pool.subnet|replace('/', '_'))) }}
+    {%- else -%}
+        {{ paginate(nodes, view='nodes.list') }}
+    {%- endif -%}
 
     </div>
 </div>

@@ -12,7 +12,7 @@
     <table class="table table-hover pools-list">
 
         <caption>
-            <h2>{{ caption | default('Pools') }}</h2>
+            <h2>{{ caption or 'Pools' }}</h2>
         </caption>
 
         <thead>
@@ -25,7 +25,7 @@
         </thead>
 
         <tbody>
-            {%- for pool in pools -%}
+            {%- for pool in pools.items -%}
             <tr>
 
                 {%- set pool_url_id = pool.name or pool.subnet | replace("/", "_") -%}
@@ -39,11 +39,11 @@
                 </td>
 
                 <td>
-                    {%- if pool.nodes -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes | count }}</a>{%- endif -%}
+                    {%- if pool.nodes_count -%}<a href="{{ url_for('pools.nodes', id=pool_url_id) }}">{{ pool.nodes_count }}</a>{%- endif -%}
                 </td>
 
                 <td>
-                    {%- if pool.leases -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases | count }}</a>{%- endif -%}
+                    {%- if pool.leases_count -%}<a href="{{ url_for('pools.leases', id=pool_url_id) }}">{{ pool.leases_count }}</a>{%- endif -%}
                 </td>
 
             </tr>
@@ -51,6 +51,14 @@
         </tbody>
 
     </table>
+
+    {%- from "pagination.html" import paginate -%}
+
+    {%- if farm -%}
+        {{ paginate(pools, view='farms.pools', view_args=dict(name=farm.name)) }}
+    {%- else -%}
+        {{ paginate(pools, view='pools.list') }}
+    {%- endif -%}
 
     </div>
 </div>

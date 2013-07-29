@@ -11,25 +11,30 @@ mod = Blueprint('pools', __name__, url_prefix='/pools')
 
 @mod.route('/', methods=['GET'])
 def list():
-    pools = models.Pool.query.all()
+    pools = models.Pool.query.options(
+                db.undefer('nodes_count'),
+                db.joinedload('farm')
+            ).paginate(int(request.args.get('p', 1)))
     return render_template("pools/list.html", pools=pools)
 
 
 def get_pool_by_id(id):
     try:
         subnet = IPNetwork(id.replace("_", "/"))
+        print subnet
     except AddrFormatError:
-        pool = models.Pool.query.filter(models.Pool.name==id).first_or_404()
+        return models.Pool.query.filter(models.Pool.name==id).first_or_404()
     else:
-        pool = models.Pool.query.get_or_404(subnet)
-
-    return pool
+        return models.Pool.query.get_or_404(subnet)
 
 
 @mod.route('/<id>/nodes', methods=['GET'])
 def nodes(id):
-    pool = models.Pool.query.get_or_404(id.replace("_", "/"))
-    return render_template("nodes/list.html", nodes=pool.nodes, caption='Pool %s nodes' % pool.subnet)
+    pool = get_pool_by_id(id)
+    return render_template("nodes/list.html",
+                nodes=pool.nodes.paginate(int(request.args.get('p', 1))),
+                caption='Pool %s nodes' % pool.subnet,
+                pool=pool)
 
 
 @mod.route('/<id>/leases', methods=['GET'])
@@ -37,15 +42,20 @@ def nodes(id):
 def leases(id):
     leases = None
     caption = None
+    pool = None
+
     if id:
-        pool = models.Pool.query.get_or_404(id.replace("_", "/"))
+        pool = get_pool_by_id(id)
         leases = pool.leases
         caption = 'Pool %s leases' % pool.subnet
 
     else:
-        leases = Lease.query.all()
+        leases = Lease.query
 
-    return render_template("leases/list.html", leases=leases, caption=caption)
+    return render_template("leases/list.html",
+            leases=leases.paginate(int(request.args.get('p', 1))),
+            caption=caption,
+            pool=pool)
 
 
 @mod.route('/__new__', methods=['POST', 'GET'], defaults={'id': None})

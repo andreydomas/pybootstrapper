@@ -24,7 +24,7 @@
         </thead>
 
         <tbody>
-            {%- for kernel in kernels -%}
+            {%- for kernel in kernels.items -%}
             <tr>
                 <td>
                     {{ kernel.created }}
@@ -33,7 +33,7 @@
                     {{ kernel.name }}
                 </td>
                 <td>
-                    {%- if kernel.boot_images -%}{{ kernel.boot_images | length }}{%- endif -%}
+                    {%- if kernel.boot_images_count -%}{{ kernel.boot_images_count }}{%- endif -%}
                 </td>
             </tr>
             {%- endfor -%}
@@ -41,6 +41,8 @@
 
     </table>
 
+    {%- from "pagination.html" import paginate -%}
+    {{ paginate(kernels, view='kernels.list') }}
     </div>
 </div>
 

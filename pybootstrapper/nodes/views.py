@@ -10,7 +10,7 @@ mod = Blueprint('nodes', __name__, url_prefix='/nodes')
 
 @mod.route('/', methods=['GET'])
 def list():
-    nodes = models.Node.query.all()
+    nodes = models.Node.query.paginate(int(request.args.get('p', 1)))
     return render_template("nodes/list.html", nodes=nodes)
 
 
@@ -34,7 +34,7 @@ def kernel(id):
 def initrd(id):
     node = models.Node.query.get_or_404(id)
     return send_file(
-                pxe_images_store.path('%s/%s' % (node.boot_image.farm_id, node.boot_image.filename)),
+                pxe_images_store.image_path(node.boot_image.farm_id, node.boot_image.filename),
                 mimetype='application/octet-stream',
                 add_etags=False
             )

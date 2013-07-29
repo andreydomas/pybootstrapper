@@ -31,11 +31,33 @@ class Node(Fixtured, db.Model):
     def pool(cls):
         return db.relationship(Pool, lazy='joined', innerjoin=True,
                   primaryjoin=db.and_(cls.pool_subnet==Pool.subnet),
-                  backref=db.backref('nodes', lazy='select', order_by=cls.created.desc()))
+                  backref=db.backref('nodes', lazy='dynamic', order_by=cls.created.desc()))
 
-    farm = db.relationship(Farm, backref='nodes', secondary=Pool.__table__, uselist=False, lazy='joined')
+    farm = db.relationship(Farm, backref=db.backref('nodes', lazy='dynamic'), secondary=Pool.__table__, uselist=False, lazy='joined')
 
-    boot_image = db.relationship(BootImage, backref='nodes', lazy='joined')
+    boot_image = db.relationship(BootImage, backref=db.backref('nodes', lazy='dynamic'), lazy='joined')
+
+    @classmethod
+    def __declare_last__(cls):
+        Farm.nodes_count = db.column_property(db.select([db.func.count()]) \
+                                                .where(
+                                                    db.and_(
+                                                        cls.pool_subnet==Pool.subnet,
+                                                        Pool.farm_id==Farm.id
+                                                    )
+                                                ) \
+                                                .label('nodes_count'),
+                                                deferred=True
+
+                                            )
+
+        Pool.nodes_count = db.column_property(db.select([db.func.count()]) \
+                                                .where(
+                                                    cls.pool_subnet==Pool.subnet
+                                                ) \
+                                                .label('nodes_count'),
+                                                deferred=True
+                                            )
 
     def cleanup_offers(self):
         Lease.query.with_parent(self).delete()
@@ -133,6 +155,7 @@ class Node(Fixtured, db.Model):
                     )
                 ])
 
+
 @event.listens_for(Node, 'before_update')
 def leasing_force_expiration(mapper, connection, target):
 
@@ -165,10 +188,29 @@ class Lease(db.Model):
     def node(cls):
         return db.relationship(Node,
                     lazy='select', innerjoin=True,
-                    backref=db.backref('leases', lazy='joined', order_by=cls.created.desc()))
+                    backref=db.backref('leases', lazy='dynamic', order_by=cls.created.desc()))
 
     pool = db.relationship(Pool,
                 secondary=Node.__table__, lazy='select', backref='leases', viewonly=True)
+
+    @classmethod
+    def __declare_last__(cls):
+        Pool.leases_count = db.column_property(db.select([db.func.count()]) \
+                                                .where(
+                                                    db.and_(
+                                                        cls.id==Node.id,
+                                                        Node.pool_subnet==Pool.subnet
+                                                    )
+                                                )
+
+                                            )
+
+        Node.leases_count = db.column_property(db.select([db.func.count()]) \
+                                                .where(
+                                                    cls.id==Node.id
+                                                )
+
+                                            )
 
     def __repr__(self):
         return "%s - %s(from %s until %s)" % (self.__class__.__name__, self.yiaddr, self.created, self.leasing_until)

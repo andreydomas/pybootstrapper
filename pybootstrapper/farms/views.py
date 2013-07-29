@@ -5,6 +5,8 @@ from pybootstrapper.ext import db, pxe_images_store, iscsi_images_store
 from pybootstrapper import events
 from ..pools.models import Pool
 from ..kernels.models import Kernel
+from ..iscsi import signals as iscsi_signals
+from ..iscsi.ietd import IETAdmError
 
 import models
 import forms
@@ -17,24 +19,34 @@ def gexf(farms):
 
 @mod.route('/', methods=['GET'])
 def list():
-    farms = models.Farm.query.all()
+    farms = models.Farm.query.options(
+                db.undefer('boot_images_count'),
+                db.undefer('nodes_count'),
+                db.undefer('pools_count')
+            )
 
     if 'gexf' in request.args:
-        return gexf(farms)
+        return gexf(farms.all())
 
-    return render_template("farms/list.html", farms=farms)
+    return render_template("farms/list.html", farms=farms.paginate(int(request.args.get('p', 1))))
 
 
 @mod.route('/<string:name>/pools', methods=['GET'])
 def pools(name):
     farm = models.Farm.query.filter(models.Farm.name==name).first_or_404()
-    return render_template("pools/list.html", pools=farm.pools, caption='Farm %s pools' % farm.name)
+    return render_template("pools/list.html",
+                pools=farm.pools.paginate(int(request.args.get('p', 1))),
+                caption='Farm %s pools' % farm.name,
+                farm=farm)
 
 
 @mod.route('/<string:name>/nodes', methods=['GET'])
 def nodes(name):
     farm = models.Farm.query.filter(models.Farm.name==name).first_or_404()
-    return render_template("nodes/list.html", nodes=farm.nodes, caption='Farm %s nodes' % farm.name)
+    return render_template("nodes/list.html",
+                nodes=farm.nodes.paginate(int(request.args.get('p', 1))),
+                caption='Farm %s nodes' % farm.name,
+                farm=farm)
 
 
 @mod.route('/<string:name>/nodes', methods=['POST'])
@@ -51,10 +63,14 @@ def images(name):
         caption='Farm %s images' % farm.name
         images = farm.boot_images
     else:
+        farm = None
         caption = None
-        images = models.PxeBootImage.query.all()
+        images = models.BootImage.query
 
-    return render_template("farms/images.html", images=images, caption=caption)
+    return render_template("farms/images.html",
+                images=images.paginate(int(request.args.get('p', 1))),
+                caption=caption,
+                farm=farm)
 
 
 @mod.route('/<string:name>/images/pxe/<string:kernel_name>/<string:version>', methods=['PUT'])
@@ -95,7 +111,19 @@ def new_image(name, kernel_name, version):
 
         events.PyBootstrapperEventFilesNewImage.register(version, farm)
 
-        db.session.commit()
+        db.session.flush()
+
+        if isinstance(image, models.IscsiBootImage):
+            try:
+                iscsi_signals.create.send(image)
+            except IETAdmError, e:
+                db.session.rollback()
+                return str(e), 500
+            else:
+                db.session.commit()
+        else:
+            db.session.commit()
+
         return filename, 201
 
     else:
@@ -128,7 +156,8 @@ def farm(name):
 
     else:
         code = 400
-        current_app.logger.error(form.errors)
+        if form.errors:
+            current_app.logger.error(form.errors)
 
     return render_template("farms/farm.html",
                            farm=farm, form=form,

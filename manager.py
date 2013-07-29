@@ -38,27 +38,37 @@ def fixtures():
     logger = logging.getLogger('fixtures')
     from os import path
     from yaml import load_all
-    from pybootstrapper.nodes.models import Node, Pool, Farm
+    from pybootstrapper.nodes.models import Node, Pool, Farm, BootImage
+    from pybootstrapper.kernels.models import Kernel
 
     fixtures_dir = path.dirname(path.realpath(__file__)) + '/fixtures'
     fixtures_classes_factories = {
             'Farm': Farm,
-            'Node': Node,
             'Pool': Pool,
+            'Kernel': Kernel,
+            'BootImage': BootImage,
+            'Node': Node,
     }
 
-    sequence = ['Farm', 'Pool', 'Node']
+    sequence = ['Farm', 'Pool', 'Kernel', 'BootImage', 'Node']
 
     for fx in sequence:
         f = fixtures_dir + '/' + fx
         if path.isfile(f):
             logger.info(f)
             dataMap = load_all(file(f, 'r'))
+
+            chunk = 1
+
             for entity in dataMap:
                 model_cls = fixtures_classes_factories[fx]
                 model_obj = model_cls().from_yaml(entity)
                 db.session.add(model_obj)
-                db.session.commit()
+                db.session.flush()
+
+                if chunk / 50:
+                    db.session.commit()
+            db.session.commit()
 
 
 @manager.command

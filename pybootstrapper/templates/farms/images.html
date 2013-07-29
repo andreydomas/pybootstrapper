@@ -10,7 +10,7 @@
         <table class="table table-hover nodes-list">
 
             <caption>
-                <h2>{{ caption | default('Boot images') }}</h2>
+                <h2>{{ caption or 'Boot images' }}</h2>
             </caption>
 
             <thead>
@@ -22,7 +22,7 @@
             </thead>
 
             <tbody>
-                {%- for image in images -%}
+                {%- for image in images.items -%}
                 <tr>
                     <td>
                         {{ image.version }}
@@ -38,6 +38,14 @@
             </tbody>
 
         </table>
+
+    {%- from "pagination.html" import paginate -%}
+
+    {%- if farm -%}
+        {{ paginate(images, view='farms.images', view_args=dict(name=farm.name)) }}
+    {%- else -%}
+        {{ paginate(images, view='farms.images') }}
+    {%- endif -%}
 
     </div>
 </div>

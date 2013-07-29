@@ -10,7 +10,7 @@ class Kernel(db.Model, Fixtured):
     created = db.Column(db.DateTime, nullable=False, default=datetime.now)
     name = db.Column(db.String(255), nullable=False, primary_key=True)
 
-    def __init__(self, name):
+    def __init__(self, name=None):
         self.name = name
 
     def __repr__(self):

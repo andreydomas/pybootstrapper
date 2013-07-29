@@ -33,21 +33,20 @@
         </thead>
 
         <tbody>
-            {%- for farm in farms -%}
+            {%- for farm in farms.items -%}
             <tr>
                 <td>
                     <a href="{{ url_for('farms.farm', name=farm.name) }}">{{ farm.name }}</a>
                 </td>
                 <td>
-                    {%- if farm.pools -%}<a href="{{ url_for('farms.pools', name=farm.name) }}">{{ farm.pools | count }}</a>{%- endif -%}
+                    {%- if farm.pools_count -%}<a href="{{ url_for('farms.pools', name=farm.name) }}">{{ farm.pools_count }}</a>{%- endif -%}
                 </td>
                 <td>
-                    {%- set nodes_count = farm.pools | sum(attribute='nodes_count') -%}
-                    {%- if nodes_count -%}<a href="{{ url_for('farms.nodes', name=farm.name) }}">{{ nodes_count }}</a>{%- endif -%}
+                    {%- if farm.nodes_count -%}<a href="{{ url_for('farms.nodes', name=farm.name) }}">{{ farm.nodes_count }}</a>{%- endif -%}
                 </td>
                 <td>
-                    {%- if farm.boot_images -%}
-                    <a href="{{ url_for('farms.images', name=farm.name) }}">{{ farm.boot_images | length }}</a>
+                    {%- if farm.boot_images_count -%}
+                    <a href="{{ url_for('farms.images', name=farm.name) }}">{{ farm.boot_images_count }}</a>
                     {%- endif -%}
                 </td>
             </tr>
@@ -55,6 +54,9 @@
         </tbody>
 
     </table>
+
+    {%- from "pagination.html" import paginate -%}
+    {{ paginate(farms, view='farms.list') }}
 
     </div>
 </div>

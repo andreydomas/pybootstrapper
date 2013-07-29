@@ -26,11 +26,17 @@ class Pool(Fixtured, db.Model, object):
     subnet = db.Column(Subnet(18), primary_key=True, autoincrement=False)
     lease_time = db.Column(db.Integer, nullable=False, default=86400)
     farm_id = db.Column(db.Integer(), db.ForeignKey(Farm.id, onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
-    farm = db.relationship(Farm, backref='pools', single_parent=True, innerjoin=True)
+    farm = db.relationship(Farm, backref=db.backref('pools', lazy='dynamic'), single_parent=True, innerjoin=True)
 
-    @property
-    def nodes_count(self):
-        return len(self.nodes)
+    @classmethod
+    def __declare_last__(cls):
+        Farm.pools_count = db.column_property(db.select([db.func.count()]) \
+                                                .where(
+                                                    cls.farm_id==Farm.id
+                                                ) \
+                                                .label('pools_count'),
+                                                deferred=True
+                                            )
 
     @property
     def options(self):
@@ -51,7 +57,7 @@ class PoolOption(Fixtured, db.Model):
     pool_subnet = db.Column(Subnet(18), db.ForeignKey(Pool.subnet, onupdate="CASCADE", ondelete="CASCADE"), primary_key=True, autoincrement=False)
     _option = db.Column('option', db.String(253), nullable=False, primary_key=True)
     value = db.Column(db.String(253), nullable=False)
-    pool = db.relationship(Pool, lazy='select', innerjoin=True, single_parent=True, uselist=True,
+    pool = db.relationship(Pool, lazy='select', innerjoin=True, single_parent=True, uselist=False,
                 backref='_options'
             )
 

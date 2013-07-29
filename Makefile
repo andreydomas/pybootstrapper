@@ -5,7 +5,7 @@ PIP :=  ${ENV}/bin/pip
 NOSETESTS := ${ENV}/bin/nosetests
 
 web:
-	${PYTHON} manager.py runserver
+	${PYTHON} manager.py runserver -t 0.0.0.0
 
 dhcp:
 	${PYTHON} manager.py dhcp
@@ -18,8 +18,11 @@ shell:
 
 env:
 	virtualenv --system-site-packages ${ENV}
-	USE_SETUPTOOLS=1 ${PIP} install -U \
+	${PIP} install -U \
+			setuptools \
 			Flask \
+			flask-debugtoolbar \
+			blinker \
 			Flask-SQLAlchemy \
 			Flask-Script \
 			Flask-WTF \

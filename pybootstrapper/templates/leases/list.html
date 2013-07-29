@@ -24,7 +24,7 @@
 
 
         <tbody>
-            {%- for lease in leases -%}
+            {%- for lease in leases.items -%}
             <tr>
 
                 <td><a href="{{ url_for('nodes.node', id=lease.node.id) }}">{{ lease.node.id }}</a></td>
@@ -40,6 +40,14 @@
         </tbody>
 
     </table>
+
+    {%- from "pagination.html" import paginate -%}
+
+    {%- if pool -%}
+        {{ paginate(leases, view='pools.leases', view_args=dict(id=pool.name or pool.subnet|replace('/', '_'))) }}
+    {%- else -%}
+        {{ paginate(leases, view='pools.leases') }}
+    {%- endif -%}
 
     </div>
 </div>

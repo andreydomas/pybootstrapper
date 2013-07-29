@@ -1,5 +1,5 @@
 from flask import Flask, redirect, url_for
-from flask.ext.sqlalchemy import SQLAlchemy
+from flask.ext.sqlalchemy import SQLAlchemy, models_committed
 from flaskext.uploads import configure_uploads
 
 from pybootstrapper.ext import db, pxe_images_store, kernels_store, iscsi_images_store
@@ -13,6 +13,11 @@ def create_app(settings_ini):
     init_db(app)
     init_ext(app)
     init_blueprints(app)
+    init_iscsi(app)
+
+    if app.config.get('DEBUG'):
+        init_debug(app)
+
     return app
 
 
@@ -27,8 +32,22 @@ def init_db(app):
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
+    #@models_committed.connect_via(app)
+    #def model_committed(sender, changes):
+    #    for change in changes:
+    #        model, operation = change
+    #        if hasattr(model, '__model_committed__') and hasattr(model.__model_committed__, '__call__'):
+    #            model.__model_committed__(operation)
+
     db.init_app(app)
 
+def init_iscsi(app):
+    from iscsi.ietd import IETAdm
+    app.ietd = IETAdm(app)
+
+def init_debug(app):
+    from flask_debugtoolbar import DebugToolbarExtension
+    DebugToolbarExtension(app)
 
 def init_ext(app):
     configure_uploads(app, pxe_images_store)

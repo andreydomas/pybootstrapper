@@ -10,7 +10,9 @@ mod = Blueprint('kernels', __name__, url_prefix='/kernels')
 
 @mod.route('/', methods=['GET'])
 def list():
-    kernels = models.Kernel.query.all()
+    kernels = models.Kernel.query.options(
+                db.undefer('boot_images_count')
+            ).paginate(int(request.args.get('p', 1)))
     return render_template("kernels/list.html", kernels=kernels)
 
 
@@ -42,8 +44,8 @@ def add(name):
             return redirect(url_for('.list'))
 
     else:
-
-        current_app.logger.error(form.errors)
+        if form.errors:
+            current_app.logger.error(form.errors)
 
         if request.method == 'PUT':
             return 'Form data is invalid', 400

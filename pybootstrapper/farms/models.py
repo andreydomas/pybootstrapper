@@ -1,9 +1,10 @@
+import subprocess
 from datetime import datetime
 from sqlalchemy.ext.declarative import declared_attr
 
-from flask import current_app, url_for
+from flask import current_app, url_for, abort
 
-from pybootstrapper.ext import db
+from pybootstrapper.ext import db, iscsi_images_store
 from ..models import Fixtured
 from ..kernels.models import Kernel
 import constants
@@ -21,8 +22,7 @@ class Farm(db.Model, Fixtured):
         return self.name
 
 
-class BootImage(db.Model):
-
+class BootImage(db.Model, Fixtured):
     __tablename__ = 'images'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -43,13 +43,34 @@ class BootImage(db.Model):
 
     @declared_attr
     def kernel(cls):
-        return db.relationship(Kernel, backref='boot_images', lazy='joined')
+        return db.relationship(Kernel, backref=db.backref('boot_images', lazy='select'), lazy='joined')
 
     @declared_attr
     def farm(cls):
         return db.relationship(Farm,
-                        backref=db.backref('boot_images', innerjoin=True, order_by=cls.version.desc()),
+                        backref=db.backref('boot_images', lazy='dynamic', innerjoin=True, order_by=cls.version.desc()),
+                        lazy='joined',
                         innerjoin=True, single_parent=True)
+
+    @classmethod
+    def __declare_last__(cls):
+        Kernel.boot_images_count = db.column_property(db.select([db.func.count()]) \
+                                                        .where(
+                                                            cls.kernel_name==Kernel.name
+                                                        ) \
+                                                        .label('boot_images_count'),
+                                                        deferred=True
+                                                    )
+
+        Farm.boot_images_count = db.column_property(db.select([db.func.count()]) \
+                                                        .where(
+                                                            cls.farm_id==Farm.id
+                                                        ) \
+                                                        .label('boot_images_count'),
+                                                        deferred=True
+                                                    )
+
+
 
     __table_args__ = (
             db.UniqueConstraint(image_type, version, farm_id),
@@ -69,7 +90,7 @@ class BootImage(db.Model):
             {'mysql_engine':'InnoDB'}
     )
 
-    def __init__(self, farm, version):
+    def __init__(self, farm=None, version=None):
         self.farm = farm
         self.version = version
 
@@ -107,4 +128,8 @@ class IscsiBootImage(BootImage):
     }
 
     def gpxelinux(self, node):
-        return 'sanboot iscsi:'
+        return 'sanboot iscsi:%(server)s:::%(lun)x:%(target)s' % {
+                    'server': current_app.config['ISCSI_SERVER'],
+                    'lun': self.id,
+                    'target': current_app.config['ISCSI_TARGET']
+                }

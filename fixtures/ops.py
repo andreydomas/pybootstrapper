@@ -26,6 +26,9 @@ for i in range(1, 512):
 
     id = id + 1
 
+    if random.randint(1,2) > 1:
+        d['image_id'] = random.randint(1,29)
+
     if random.randint(0,10) / 5:
         d['static_ip'] = str(IPNetwork(d['pool_subnet'])[random.randint(2, 120)])
 

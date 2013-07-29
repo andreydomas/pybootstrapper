@@ -1,0 +1,45 @@
+{#
+Usage: paginate(<pagination_obj>, <view_name>, <dict_with_view_args>)
+View must assert thats `p` request argument with number of page can be passed.
+#}
+
+{%- macro paginate(pagination, view, view_args=None) -%}
+<div class="pagination">
+    {%- if pagination.pages > 1 -%}
+    <ul>
+        {%- if view_args %}
+            {%- set vargs = view_args -%}
+        {%- else %}
+            {%- set vargs = {} -%}
+        {%- endif %}
+
+        {%- macro paginate_link(text, page_num) %}
+            {%- if vargs.update({'p': page_num}) %}{%- endif %}
+            <li><a href="{{ url_for(view, **vargs) }}">{{ text }}</a></li>
+        {%- endmacro %}
+
+        {%- if pagination.has_prev -%}
+            {{ paginate_link('«', pagination.prev_num) }}
+        {%- else -%}
+            <li class="disabled"><span>«</span></li>
+        {%- endif -%}
+
+        {%- for page in pagination.iter_pages() -%}
+            {%- if page -%}
+                {%- if page != pagination.page -%}
+                    {{ paginate_link(page, page) }}
+                {%- else -%}
+                    <li class="active"><span>{{ page }}</span></li>
+                {%- endif -%}
+            {%- endif -%}
+        {%- endfor -%}
+
+        {%- if pagination.has_next -%}
+            {{ paginate_link('»', pagination.next_num) }}
+        {%- else -%}
+            <li class="disabled"><span>»</span></li>
+        {%- endif -%}
+    </ul>
+    {%- endif -%}
+</div>
+{%- endmacro -%}
